@@ -1,0 +1,7 @@
+AGPL-3.0-only
+
+This plugin is intended to be used with Hydro and Scratch-related components,
+both of which are distributed under AGPL-compatible open source terms. Keep the
+full license texts of Hydro, Scratch editor, and other third-party components
+when distributing a combined service.
+

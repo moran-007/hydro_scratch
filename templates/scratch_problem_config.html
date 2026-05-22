@@ -1,0 +1,118 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+{{ set(UiContext, 'pdoc', pdoc) }}
+<div class="row">
+  <div class="medium-8 columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Scratch Problem') }}</h1>
+        <div class="section__tools">
+          <a class="rounded button" href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ _('Problem') }}</a>
+        </div>
+      </div>
+      <div class="section__body">
+        <form method="post">
+          {{ form.form_checkbox({
+              label:'Enable Scratch',
+              name:'enabled',
+              value:config.enabled
+            }) }}
+          {{ form.form_select({
+              label:'Submit Mode',
+              name:'submitMode',
+              options:{upload:'Upload only', editor:'Editor only', both:'Upload and editor'},
+              value:config.submitMode
+            }) }}
+          {{ form.form_select({
+              label:'Judge Mode',
+              name:'judgeMode',
+              options:{manual:'Manual', static:'Static', dynamic:'Dynamic', hybrid:'Hybrid'},
+              value:config.judgeMode
+            }) }}
+          {{ form.form_text({
+              label:'Max Score',
+              name:'maxScore',
+              value:config.maxScore
+            }) }}
+          {{ form.form_text({
+              label:'Max Project Size MB',
+              name:'maxProjectSizeMB',
+              value:config.maxProjectSizeMB
+            }) }}
+          {{ form.form_text({
+              label:'Max Unpacked Size MB',
+              name:'maxUnpackedSizeMB',
+              value:config.maxUnpackedSizeMB
+            }) }}
+          {{ form.form_text({
+              label:'Max Asset Size MB',
+              name:'maxAssetSizeMB',
+              value:config.maxAssetSizeMB
+            }) }}
+          {{ form.form_text({
+              label:'Max Asset Count',
+              name:'maxAssetCount',
+              value:config.maxAssetCount
+            }) }}
+          {{ form.form_text({
+              label:'Max project.json Size MB',
+              name:'maxProjectJsonSizeMB',
+              value:config.maxProjectJsonSizeMB
+            }) }}
+          {{ form.form_textarea({
+              label:'Disabled Scratch Extensions',
+              name:'disabledScratchExtensions',
+              value:config.disabledScratchExtensions.join(', '),
+              rows:3,
+              help_text:'Comma-separated extension identifiers.'
+            }) }}
+          {{ form.form_checkbox({
+              label:'Allow Template Download',
+              name:'allowDownloadTemplate',
+              value:config.allowDownloadTemplate
+            }) }}
+          <div class="row">
+            <div class="columns">
+              <input type="submit" class="rounded primary button" value="{{ _('Save') }}">
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="medium-4 columns">
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">Template .sb3</h1>
+      </div>
+      <div class="section__body typo">
+        {% if config.templatePath %}
+        <p>
+          Current template:
+          <a href="{{ templateDownloadUrl }}">{{ config.templateName or 'template.sb3' }}</a>
+        </p>
+        {% else %}
+        <p>No template has been uploaded.</p>
+        {% endif %}
+        <form action="{{ templateUploadUrl }}" method="post" enctype="multipart/form-data">
+          <p><input type="file" name="file" accept=".sb3" required></p>
+          <input type="submit" class="rounded button" value="{{ _('Upload') }}">
+        </form>
+      </div>
+    </div>
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">Routes</h1>
+      </div>
+      <div class="section__body typo">
+        <ul>
+          <li><code>POST /scratch/submit/{{ pdoc.docId }}</code></li>
+          <li><code>GET /scratch/problem/{{ pdoc.docId }}/submissions</code></li>
+          <li><code>GET /scratch/submission/:rid/preview</code></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

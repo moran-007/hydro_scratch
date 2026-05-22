@@ -1,0 +1,47 @@
+{
+  "name": "hydro-plugin-scratch",
+  "version": "0.1.0",
+  "description": "Hydro plugin MVP for Scratch .sb3 upload, preview, download, and manual scoring.",
+  "main": "index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "index.js",
+    "dist",
+    "templates",
+    "scripts",
+    "DEPLOY.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "check": "npm run build && npm test",
+    "prepack": "npm run build",
+    "pack:plugin": "npm run check && node -e \"require('fs').mkdirSync('release',{recursive:true})\" && npm pack --pack-destination release"
+  },
+  "keywords": [
+    "hydrooj",
+    "hydro-plugin",
+    "scratch",
+    "sb3"
+  ],
+  "license": "AGPL-3.0-only",
+  "peerDependencies": {
+    "hydrooj": "*"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/yazl": "^2.4.5",
+    "@types/yauzl": "^2.10.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14",
+    "yazl": "^3.3.1"
+  }
+}

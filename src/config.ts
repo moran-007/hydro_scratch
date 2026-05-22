@@ -1,0 +1,83 @@
+import type { PluginConfig, ScratchProblemConfig } from './types';
+
+export const DEFAULT_DISABLED_EXTENSIONS = [
+  'videoSensing',
+  'text2speech',
+  'translate',
+  'cloudVariables',
+  'externalDevice',
+  'thirdPartyNetwork',
+];
+
+export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
+  storagePrefix: 'scratch',
+  maxProjectSizeMB: 20,
+  maxUnpackedSizeMB: 80,
+  maxAssetSizeMB: 10,
+  maxAssetCount: 300,
+  maxProjectJsonSizeMB: 10,
+  maxScore: 100,
+  previewPlayerUrl: 'https://turbowarp.org/embed?autoplay&addons=pause',
+};
+
+export function defaultProblemConfig(domainId: string, problemId: number, pluginConfig: PluginConfig): ScratchProblemConfig {
+  const now = new Date();
+  return {
+    domainId,
+    problemId,
+    enabled: false,
+    submitMode: 'upload',
+    judgeMode: 'manual',
+    allowDownloadTemplate: true,
+    maxProjectSizeMB: pluginConfig.maxProjectSizeMB,
+    maxUnpackedSizeMB: pluginConfig.maxUnpackedSizeMB,
+    maxAssetSizeMB: pluginConfig.maxAssetSizeMB,
+    maxAssetCount: pluginConfig.maxAssetCount,
+    maxProjectJsonSizeMB: pluginConfig.maxProjectJsonSizeMB,
+    disabledScratchExtensions: DEFAULT_DISABLED_EXTENSIONS,
+    maxScore: pluginConfig.maxScore,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+export function normalizeProblemConfig(
+  domainId: string,
+  problemId: number,
+  pluginConfig: PluginConfig,
+  input: Partial<ScratchProblemConfig> = {},
+): ScratchProblemConfig {
+  const base = defaultProblemConfig(domainId, problemId, pluginConfig);
+  return {
+    ...base,
+    ...input,
+    domainId,
+    problemId,
+    enabled: Boolean(input.enabled ?? base.enabled),
+    submitMode: ['upload', 'editor', 'both'].includes(input.submitMode || '') ? input.submitMode! : base.submitMode,
+    judgeMode: ['manual', 'static', 'dynamic', 'hybrid'].includes(input.judgeMode || '') ? input.judgeMode! : base.judgeMode,
+    allowDownloadTemplate: Boolean(input.allowDownloadTemplate ?? base.allowDownloadTemplate),
+    maxProjectSizeMB: positiveNumber(input.maxProjectSizeMB, base.maxProjectSizeMB),
+    maxUnpackedSizeMB: positiveNumber(input.maxUnpackedSizeMB, base.maxUnpackedSizeMB),
+    maxAssetSizeMB: positiveNumber(input.maxAssetSizeMB, base.maxAssetSizeMB),
+    maxAssetCount: positiveInteger(input.maxAssetCount, base.maxAssetCount),
+    maxProjectJsonSizeMB: positiveNumber(input.maxProjectJsonSizeMB, base.maxProjectJsonSizeMB),
+    disabledScratchExtensions: Array.isArray(input.disabledScratchExtensions)
+      ? input.disabledScratchExtensions.filter((item) => typeof item === 'string' && item)
+      : base.disabledScratchExtensions,
+    maxScore: positiveNumber(input.maxScore, base.maxScore),
+    createdAt: input.createdAt || base.createdAt,
+    updatedAt: new Date(),
+  };
+}
+
+function positiveNumber(value: unknown, fallback: number) {
+  const next = Number(value);
+  return Number.isFinite(next) && next > 0 ? next : fallback;
+}
+
+function positiveInteger(value: unknown, fallback: number) {
+  const next = Number(value);
+  return Number.isInteger(next) && next > 0 ? next : fallback;
+}
+

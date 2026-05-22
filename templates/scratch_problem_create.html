@@ -1,0 +1,59 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+<div class="row">
+  <div class="medium-8 columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Create Scratch Problem') }}</h1>
+      </div>
+      <div class="section__body">
+        <form method="post">
+          {{ form.form_text({
+              label:'Title',
+              name:'title',
+              autofocus:true,
+              required:true
+            }) }}
+          {{ form.form_text({
+              label:'Problem ID',
+              name:'pid',
+              help_text:'Optional. Leave empty to use Hydro numeric ID.'
+            }) }}
+          {{ form.form_textarea({
+              label:'Statement',
+              name:'content',
+              value:defaultContent,
+              rows:10
+            }) }}
+          {{ form.form_checkbox({
+              label:'Hidden',
+              name:'hidden',
+              value:false
+            }) }}
+          <div class="row">
+            <div class="columns">
+              <input type="submit" class="rounded primary button" value="{{ _('Create') }}">
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="medium-4 columns">
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Scratch Problem') }}</h1>
+      </div>
+      <div class="section__body typo">
+        <p>This creates a regular Hydro problem and enables Scratch upload/manual scoring for it.</p>
+        <ul>
+          <li>Students submit <code>.sb3</code> files.</li>
+          <li>Teachers can preview, download, and manually score submissions.</li>
+          <li>Scores flow back into Hydro records and homework/contest statistics.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
