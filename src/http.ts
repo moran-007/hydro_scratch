@@ -232,6 +232,18 @@ function isRecordScored(rdoc: any) {
   return /Manual Scratch score|Scratch score/i.test(texts);
 }
 
+function isScratchRecord(rdoc: any) {
+  if (!rdoc) return false;
+  if ([SCRATCH_LANG, 'scratch'].includes(String(rdoc.lang || '').toLowerCase())) return true;
+  if (rdoc.source === 'scratch') return true;
+  const codeFile = String(rdoc.files?.code || '');
+  if (/\.sb3(?:$|[#?])/i.test(codeFile) || /#.*\.sb3$/i.test(codeFile)) return true;
+  const codeText = Array.isArray(rdoc.code) ? rdoc.code.join('\n') : String(rdoc.code || '');
+  if (/Scratch project submitted|\/scratch\/problem\//i.test(codeText)) return true;
+  const judgeText = Array.isArray(rdoc.judgeTexts) ? rdoc.judgeTexts.join('\n') : String(rdoc.judgeTexts || '');
+  return /Scratch submission|Scratch preview|Scratch history|Manual Scratch score/i.test(judgeText);
+}
+
 function parseRecordProjectFile(rdoc: any) {
   const raw = rdoc?.files?.code;
   if (!raw || typeof raw !== 'string') return null;
@@ -336,16 +348,10 @@ async function listScratchRecordsForProblem(
   for (const problemId of problemIds) {
     addDocs(await HydroApi.record.list(domainId, { ...ownerQuery, pid: problemId }, { sort: { _id: -1 }, limit: 100 }));
   }
-  if (!docs.length) {
-    const broadQueries = [
-      { ...ownerQuery, lang: SCRATCH_LANG },
-      { ...ownerQuery, source: 'scratch' },
-    ];
-    for (const query of broadQueries) {
-      addDocs(await HydroApi.record.list(domainId, query, { sort: { _id: -1 }, limit: 300 }));
-    }
-  }
-  return docs.filter((rdoc) => recordBelongsToProblem(rdoc, problemIds));
+  addDocs(await HydroApi.record.listScratchCandidates(domainId, uid, { sort: { _id: -1 }, limit: uid === undefined ? 1000 : 500 }));
+  const scratchDocs = docs.filter((rdoc) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc));
+  const problemDocs = scratchDocs.filter((rdoc) => recordBelongsToProblem(rdoc, problemIds));
+  return problemDocs.length ? problemDocs : scratchDocs;
 }
 
 function escapeHtml(value: string) {
@@ -661,11 +667,13 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     });
     const previewUrl = this.url('scratch_submission_preview', { rid });
     const historyUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
+    const scoreUrl = this.url('scratch_submission_score', { rid });
     await HydroApi.record.update(domainId, rid, {
       code: [
         'Scratch project submitted.',
         `Preview: ${previewUrl}`,
         `History: ${historyUrl}`,
+        `Manual score: ${scoreUrl}`,
         `File: ${originalName}`,
       ].join('\n'),
       files: { code: `${submissionFileId}#${originalName}` },
@@ -707,7 +715,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       historyUrl,
       recordUrl: this.url('record_detail', { rid }),
       downloadUrl: this.url('scratch_submission_project', { rid }),
-      scoreUrl: this.url('scratch_submission_score', { rid }),
+      scoreUrl,
     };
   }
 }
@@ -893,7 +901,7 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
     const metaDocs = await listScratchSubmissionMeta(domainId, problemIds, query);
     const rdocs = await listScratchRecordsForProblem(domainId, problemIds, canReadAll ? undefined : this.user._id);
     const fallbackDocs = rdocs
-      .filter((rdoc: any) => (rdoc.lang === SCRATCH_LANG || rdoc.source === 'scratch') && !!parseRecordProjectFile(rdoc))
+      .filter((rdoc: any) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc))
       .map((rdoc: any) => buildSubmissionFromRecord(domainId, this.pdoc, rdoc, this.scratchConfig))
       .filter(Boolean) as ScratchSubmissionMeta[];
     const docs = mergeSubmissionRecords(metaDocs, fallbackDocs);
@@ -911,6 +919,7 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
       scoredRid: getQueryValue(this, 'scored') || '',
       editorUrl: this.url('scratch_editor', { pid: this.pdoc.docId }),
       problemUrl: this.url('problem_detail', { pid: this.pdoc.docId }),
+      recordListUrl: appendQuery(this.url('record_main'), { pid: String(this.routePid || this.pdoc.docId) }),
       editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
       configUrl: this.url('scratch_problem_config', { pid: this.pdoc.docId }),
     };

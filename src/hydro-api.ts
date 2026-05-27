@@ -54,12 +54,31 @@ export const HydroApi = {
     async list(domainId: string, query: Record<string, any>, options: CursorOptions = {}) {
       if (typeof (RecordModel as any).getMulti === 'function') {
         try {
-          return await cursorToArray((RecordModel as any).getMulti(domainId, { ...query }), options);
+          const docs = await cursorToArray((RecordModel as any).getMulti(domainId, { ...query }), options);
+          if (docs.length) return docs;
+          return await listRecordsFromCollection(domainId, query, options);
         } catch {
           return await listRecordsFromCollection(domainId, query, options);
         }
       }
       return await listRecordsFromCollection(domainId, query, options);
+    },
+    async listScratchCandidates(domainId: string, uid?: number, options: CursorOptions = {}) {
+      const query: Record<string, any> = {
+        ...(uid === undefined ? {} : { uid }),
+        $or: [
+          { lang: 'scratch3' },
+          { lang: 'scratch' },
+          { source: 'scratch' },
+          { 'files.code': /#.*\.sb3$/i },
+          { code: /Scratch project submitted|\/scratch\/problem\//i },
+          { judgeTexts: /Scratch submission|Scratch preview|Scratch history|Manual Scratch score/i },
+        ],
+      };
+      const docs = await listRecordsFromCollection(domainId, query, options);
+      if (docs.length) return docs;
+      const fallbackQuery = uid === undefined ? {} : { uid };
+      return await this.list(domainId, fallbackQuery, { sort: options.sort, limit: options.limit || 500 });
     },
   },
 

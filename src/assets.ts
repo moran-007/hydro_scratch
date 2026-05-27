@@ -4,7 +4,7 @@ import path from 'node:path';
 import { Handler, NotFoundError, Types, ValidationError, param } from 'hydrooj';
 import type { PluginConfig } from './types';
 
-export const PLUGIN_ASSET_VERSION = '0.2.7';
+export const PLUGIN_ASSET_VERSION = '0.2.8';
 
 const scratchAssetOrigins = [
   'https://assets.scratch.mit.edu',

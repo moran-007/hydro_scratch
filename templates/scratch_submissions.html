@@ -22,6 +22,7 @@
     <div class="section__tools scratch-submissions__tools">
       <a class="rounded button" href="{{ problemUrl }}">{{ _('Problem') }}</a>
       <a class="rounded button" href="{{ editorUrl }}">{{ _('Scratch Editor') }}</a>
+      <a class="rounded button" href="{{ recordListUrl }}">{{ _('Hydro Records') }}</a>
       {% if canManage %}
       <a class="rounded button" href="{{ editUrl }}">{{ _('Edit Problem') }}</a>
       <a class="rounded button" href="{{ configUrl }}">{{ _('Settings') }}</a>
@@ -88,9 +89,9 @@
     {% else %}
     <div class="scratch-submissions__empty">
       {% if canManage %}
-      {{ _('No Scratch submissions were found. If students already submitted, this page will also scan Hydro records as a fallback.') }}
+      {{ _('No Scratch submissions were found here. You can also open Hydro Records to check native submissions.') }}
       {% else %}
-      {{ _('You have not submitted a Scratch project for this problem yet.') }}
+      {{ _('You have not submitted a Scratch project for this problem yet. If you just submitted, open Hydro Records to verify the native record.') }}
       {% endif %}
     </div>
     {% endif %}
