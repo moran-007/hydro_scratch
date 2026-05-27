@@ -57,6 +57,7 @@ const hydroState = vi.hoisted(() => {
   const recordAdd = vi.fn();
   const recordUpdate = vi.fn();
   const recordGet = vi.fn();
+  const recordGetMulti = vi.fn();
   const domainInc = vi.fn();
   const contestUpdateStatus = vi.fn();
   const storagePut = vi.fn();
@@ -77,6 +78,7 @@ const hydroState = vi.hoisted(() => {
       recordAdd.mockReset();
       recordUpdate.mockReset();
       recordGet.mockReset();
+      recordGetMulti.mockReset();
       domainInc.mockReset();
       contestUpdateStatus.mockReset();
       storagePut.mockReset();
@@ -168,6 +170,7 @@ const hydroState = vi.hoisted(() => {
     recordAdd,
     recordUpdate,
     recordGet,
+    recordGetMulti,
     domainInc,
     contestUpdateStatus,
     storagePut,
@@ -193,8 +196,13 @@ vi.mock('hydrooj', () => {
     args = {};
 
     url(name: string, params: Record<string, unknown> = {}) {
+      if (name === 'problem_file_download') return `/${name}/${params.pid}/file/${params.filename}`;
       const suffix = params.pid ?? params.rid;
       return suffix === undefined ? `/${name}` : `/${name}/${suffix}`;
+    }
+
+    async renderHTML(_name: string, data: Record<string, any>) {
+      return `<div class="rendered">${data.pdoc.content}</div>`;
     }
   }
 
@@ -233,6 +241,7 @@ vi.mock('hydrooj', () => {
       add: hydroState.recordAdd,
       update: hydroState.recordUpdate,
       get: hydroState.recordGet,
+      getMulti: hydroState.recordGetMulti,
     },
     STATUS: {
       STATUS_ACCEPTED: 0,
@@ -457,7 +466,35 @@ describe('Scratch problem config upsert', () => {
       tid: '64f000000000000000000001',
       submitUrl: '/scratch_submit/1001',
       previewUrl: '/problem_detail/1001?scratch=0&tid=64f000000000000000000001',
-      problemDescriptionUrl: '/problem_detail/1001?scratch=0&tid=64f000000000000000000001&pjax=1&scratchActions=0',
+      problemDescriptionUrl: '/scratch_problem_statement/1001?tid=64f000000000000000000001',
+    });
+  });
+
+  it('ScratchProblemStatementHandler.get returns rendered statement html with rewritten problem files', async () => {
+    const { defaultProblemConfig } = await import('../src/config');
+    const { ScratchProblemStatementHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemStatementHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.pdoc = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Scratch title',
+      content: 'Look: ![cat](file://cat.png)',
+      additional_file: [{ name: 'cat.png' }],
+    };
+    handler.scratchConfig = {
+      ...defaultProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG),
+      enabled: true,
+    };
+    handler.request = { query: { tid: '64f000000000000000000001' } };
+
+    await expect(handler.get()).resolves.toBeUndefined();
+
+    expect(handler.response.body).toMatchObject({
+      html: '<div class="rendered">Look: ![cat](/problem_file_download/1001/file/cat.png?tid=64f000000000000000000001)</div>',
+      content: 'Look: ![cat](/problem_file_download/1001/file/cat.png?tid=64f000000000000000000001)',
     });
   });
 
@@ -517,6 +554,60 @@ describe('Scratch problem config upsert', () => {
         previewUrl: '/scratch_submission_preview/rid-1',
         submissionsUrl: '/scratch_problem_submissions/1001',
       },
+    });
+  });
+
+  it('ScratchProblemSubmissionsHandler.get falls back to Hydro records when plugin metadata is missing', async () => {
+    const { defaultProblemConfig } = await import('../src/config');
+    const { ScratchProblemSubmissionsHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemSubmissionsHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.pdoc = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Scratch title',
+    };
+    handler.scratchConfig = {
+      ...defaultProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG),
+      enabled: true,
+      maxScore: 100,
+    };
+    handler.request = {};
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => true,
+    };
+    hydroState.recordGetMulti.mockReturnValue({
+      sort() { return this; },
+      limit() { return this; },
+      async toArray() {
+        return [{
+          _id: 'rid-record-only',
+          domainId: 'system',
+          pid: 1001,
+          uid: 22,
+          lang: 'scratch3',
+          source: 'scratch',
+          score: 0,
+          files: { code: '22/project-file#Scratch作品.sb3' },
+          judgeAt: new Date('2026-05-26T11:47:40.443Z'),
+        }];
+      },
+    });
+
+    await expect(handler.get('system')).resolves.toBeUndefined();
+
+    expect(handler.response.body).toMatchObject({
+      submissions: [{
+        rid: 'rid-record-only',
+        problemId: 1001,
+        userId: 22,
+        projectPath: 'submission/22/project-file',
+        originalName: 'Scratch作品.sb3',
+      }],
     });
   });
 });

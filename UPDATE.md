@@ -1,12 +1,12 @@
 # Hydro Scratch 插件安装与更新教程
 
-当前版本：`0.2.4`
+当前版本：`0.2.5`
 
 推荐文件：
 
-- 首次安装：`release/hydro-plugin-scratch-0.2.4.tgz`
-- 已安装后的免依赖更新：`release/hydro-plugin-scratch-update-0.2.4.zip`
-- Linux 服务器也可用：`release/hydro-plugin-scratch-update-0.2.4.tgz`
+- 首次安装：`release/hydro-plugin-scratch-0.2.5.tgz`
+- 已安装后的免依赖更新：`release/hydro-plugin-scratch-update-0.2.5.zip`
+- Linux 服务器也可用：`release/hydro-plugin-scratch-update-0.2.5.tgz`
 
 ## 一、首次安装
 
@@ -29,7 +29,7 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 把标准插件包上传到服务器：
 
 ```bash
-scp release/hydro-plugin-scratch-0.2.4.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.2.5.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -37,7 +37,7 @@ scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.4.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.5.tgz
 ```
 
 默认安装目录：
@@ -49,7 +49,7 @@ chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
 如果你的 Hydro 插件目录不同：
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.4.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.5.tgz
 ```
 
 安装完成后重启 Hydro：
@@ -75,13 +75,13 @@ sudo systemctl restart hydrooj
 ```powershell
 Copy-Item -Recurse -Force `
   "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch" `
-  "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch.bak.0.2.4"
+  "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch.bak.0.2.5"
 ```
 
 3. 解压：
 
 ```text
-release/hydro-plugin-scratch-update-0.2.4.zip
+release/hydro-plugin-scratch-update-0.2.5.zip
 ```
 
 4. 将解压出来的内容覆盖到：
@@ -99,7 +99,7 @@ release/hydro-plugin-scratch-update-0.2.4.zip
 ```bash
 cd ~/.hydro/addons
 cp -a hydro-plugin-scratch "hydro-plugin-scratch.bak.$(date +%Y%m%d%H%M%S)"
-tar -xzf /tmp/hydro-plugin-scratch-update-0.2.4.tgz -C hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.2.5.tgz -C hydro-plugin-scratch --strip-components=1
 ```
 
 然后重启 Hydro：
@@ -151,7 +151,7 @@ Ctrl + F5
 页面中应加载：
 
 ```text
-gui.js?v=0.2.4
+gui.js?v=0.2.5
 ```
 
 ### 2. 不要重复安装依赖
@@ -159,7 +159,7 @@ gui.js?v=0.2.4
 只要 `package.json` 的 dependencies 没有变化，使用更新包覆盖即可：
 
 ```text
-release/hydro-plugin-scratch-update-0.2.4.zip
+release/hydro-plugin-scratch-update-0.2.5.zip
 ```
 
 不要执行：
@@ -176,7 +176,7 @@ yarn install
 1. 重启 Hydro。
 2. 清浏览器缓存或无痕窗口测试。
 3. 确认插件目录中的 `public/scratch-editor/gui.js` 已被覆盖。
-4. 确认 `public/scratch-editor/index.html` 中版本是 `0.2.4`。
+4. 确认 `public/scratch-editor/index.html` 中版本是 `0.2.5`。
 
 ## 五、回滚
 

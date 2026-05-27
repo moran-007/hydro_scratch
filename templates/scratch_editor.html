@@ -289,6 +289,7 @@
   const SAVE_DRAFT_URL = '{{ saveDraftUrl }}';
   const SUBMIT_URL = '{{ submitUrl }}';
   const PROBLEM_DESCRIPTION_URL = '{{ problemDescriptionUrl }}';
+  const PROBLEM_URL = '{{ problemUrl }}';
   const TID = '{{ tid }}';
 
   const frame = document.getElementById('scratch-editor-frame');
@@ -376,6 +377,39 @@
     } catch (error) {
       console.error('Problem statement load failed:', error);
       problemContent.innerHTML = '<div class="problem-error">题面加载失败，请点击上方 Problem 查看 Hydro 原题面。</div>';
+    }
+  }
+
+  function normalizeProblemAssetUrls() {
+    if (!problemContent || !PROBLEM_URL) return;
+    problemContent.querySelectorAll('[src], [href]').forEach(function(node) {
+      const attr = node.hasAttribute('src') ? 'src' : 'href';
+      const value = node.getAttribute(attr);
+      if (!value || /^(?:[a-z]+:|#|\/)/i.test(value)) return;
+      try {
+        node.setAttribute(attr, new URL(value, new URL(PROBLEM_URL, window.location.href)).toString());
+      } catch (error) {
+        // Keep Hydro's original value if URL normalization fails.
+      }
+    });
+  }
+
+  async function loadProblemStatementSafe() {
+    if (!problemContent || !PROBLEM_DESCRIPTION_URL) return;
+    try {
+      const response = await fetch(PROBLEM_DESCRIPTION_URL, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const payload = await response.json();
+      if (!payload || !payload.html) throw new Error('Missing statement html');
+      problemContent.innerHTML = payload.html;
+      normalizeProblemAssetUrls();
+    } catch (error) {
+      console.error('Problem statement load failed:', error);
+      problemContent.innerHTML = '<div class="problem-error">Problem statement failed to load. Please click the Problem button above to view the original Hydro page.</div>';
     }
   }
 
@@ -478,7 +512,7 @@
 
   saveBtn && saveBtn.addEventListener('click', saveDraft);
   submitBtn && submitBtn.addEventListener('click', submitProject);
-  loadProblemStatement();
+  loadProblemStatementSafe();
 
   function setFloating(next) {
     if (!editorPanel) return;

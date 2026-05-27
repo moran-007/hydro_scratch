@@ -78,7 +78,7 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
       editorUrl,
       editorOrigin: resolveOrigin(editorUrl, this.pluginConfig.scratchEditorOrigin),
       problemUrl,
-      problemDescriptionUrl: appendQuery(problemUrl, { pjax: 1, scratchActions: 0 }),
+      problemDescriptionUrl: appendQuery(this.url('scratch_problem_statement', { pid: this.pdoc.docId }), { tid }),
       templateUrl: this.scratchConfig.templatePath ? this.url('scratch_problem_template', { pid: this.pdoc.docId }) : '',
       templateProjectUrl: this.scratchConfig.templatePath
         ? this.url('scratch_problem_template', { pid: this.pdoc.docId, query: { raw: 1 } })

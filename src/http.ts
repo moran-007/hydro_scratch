@@ -122,6 +122,133 @@ ${SCRATCH_ACTIONS_MARKER}
 ${managerLinks}`;
 }
 
+function appendScratchProblemActionsSafe(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
+  if (!config.enabled || typeof pdoc.content !== 'string' || pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
+  const tid = getQueryValue(handler, 'tid') as string | undefined;
+  const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
+  const submissionsUrl = buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId });
+  const editUrl = buildHandlerUrl(handler, 'scratch_problem_edit', { pid: pdoc.docId });
+  const canManage = handler.user?.own?.(pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || handler.user?.hasPerm(PERM.PERM_EDIT_PROBLEM);
+  const managerLinks = canManage
+    ? `\n\nTeacher entry: [Submissions / Manual score](${submissionsUrl}) | [Edit Scratch problem](${editUrl})`
+    : '';
+  pdoc.content = `${pdoc.content}
+
+${SCRATCH_ACTIONS_MARKER}
+
+---
+
+**Scratch Online Editor**
+
+[Open Scratch Online Editor](${editorUrl})
+${managerLinks}`;
+}
+
+function recordId(rdoc: any) {
+  return rdoc?._id ?? rdoc?.rid;
+}
+
+function sameRecordId(left: any, right: any) {
+  if (left === right) return true;
+  if (left === undefined || left === null || right === undefined || right === null) return false;
+  return String(left) === String(right);
+}
+
+function recordCreatedAt(rdoc: any) {
+  const timestamp = rdoc?._id?.getTimestamp?.();
+  if (timestamp instanceof Date) return timestamp;
+  if (rdoc?.judgeAt instanceof Date) return rdoc.judgeAt;
+  return new Date();
+}
+
+function parseRecordProjectFile(rdoc: any) {
+  const raw = rdoc?.files?.code;
+  if (!raw || typeof raw !== 'string') return null;
+  const [storageId, ...nameParts] = raw.split('#');
+  if (!storageId) return null;
+  return {
+    projectPath: `submission/${storageId}`,
+    originalName: nameParts.join('#') || 'scratch-project.sb3',
+  };
+}
+
+function buildEmptyValidation() {
+  return {
+    projectJsonSize: 0,
+    unpackedSize: 0,
+    assetCount: 0,
+    targets: 0,
+    spriteCount: 0,
+    hasStage: false,
+    warnings: ['Scratch metadata was rebuilt from the Hydro record.'],
+  };
+}
+
+function buildSubmissionFromRecord(
+  domainId: string,
+  pdoc: any,
+  rdoc: any,
+  config: ScratchProblemConfig,
+): ScratchSubmissionMeta | null {
+  const rid = recordId(rdoc);
+  const file = parseRecordProjectFile(rdoc);
+  if (!rid || !file) return null;
+  const createdAt = recordCreatedAt(rdoc);
+  return {
+    domainId,
+    rid,
+    problemId: rdoc.pid ?? pdoc.docId,
+    userId: rdoc.uid,
+    projectPath: file.projectPath,
+    originalName: file.originalName,
+    projectSize: 0,
+    source: 'editor',
+    validation: buildEmptyValidation(),
+    score: rdoc.score,
+    maxScore: config.maxScore || 100,
+    previewAvailable: true,
+    createdAt,
+    updatedAt: rdoc.judgeAt instanceof Date ? rdoc.judgeAt : createdAt,
+  };
+}
+
+function mergeSubmissionRecords(metaDocs: ScratchSubmissionMeta[], fallbackDocs: ScratchSubmissionMeta[]) {
+  const merged = [...metaDocs];
+  for (const fallback of fallbackDocs) {
+    if (!merged.some((item) => sameRecordId(item.rid, fallback.rid))) merged.push(fallback);
+  }
+  return merged.sort((left, right) => {
+    const leftTime = left.createdAt instanceof Date ? left.createdAt.getTime() : new Date(left.createdAt).getTime();
+    const rightTime = right.createdAt instanceof Date ? right.createdAt.getTime() : new Date(right.createdAt).getTime();
+    return rightTime - leftTime;
+  });
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function rewriteProblemFileUrls(handler: Handler, pdoc: any, content: string, tid?: string) {
+  return content.replace(/file:\/\/([^ \n)\\"]+)/g, (raw, fileinfo: string) => {
+    const [filenameWithEncoding, query = ''] = fileinfo.split('?');
+    let filename = filenameWithEncoding;
+    try {
+      filename = decodeURIComponent(filenameWithEncoding);
+    } catch { /* keep original */ }
+    if (pdoc.additional_file?.length && !pdoc.additional_file.find((item: any) => item.name === filename)) return raw;
+    const base = handler.url('problem_file_download', { pid: pdoc.docId, filename });
+    const params = new URLSearchParams(query);
+    if (tid) params.set('tid', String(tid));
+    const suffix = params.toString();
+    return suffix ? `${base}?${suffix}` : base;
+  });
+}
+
 function normalizeProblemPid(pid: string | number | undefined, fallback: string | number) {
   const next = pid === undefined || pid === null || pid === '' ? fallback : pid;
   return typeof next === 'string' ? next : `P${next}`;
@@ -172,6 +299,28 @@ abstract class ScratchProblemHandler extends Handler {
 
   ensureScratchEnabled() {
     if (!this.scratchConfig.enabled) throw new ValidationError('scratch.enabled');
+  }
+}
+
+export class ScratchProblemStatementHandler extends ScratchProblemHandler {
+  async get() {
+    this.ensureScratchEnabled();
+    const tid = getQueryValue(this, 'tid') as string | undefined;
+    const pdoc = {
+      ...this.pdoc,
+      content: rewriteProblemFileUrls(this, this.pdoc, this.pdoc.content || '', tid),
+    };
+    let html: string;
+    if (typeof (this as any).renderHTML === 'function') {
+      html = await (this as any).renderHTML('partials/problem_description.html', { pdoc, tdoc: null });
+    } else {
+      html = `<div class="typo">${escapeHtml(pdoc.content).replace(/\n/g, '<br>')}</div>`;
+    }
+    this.response.body = {
+      html,
+      content: pdoc.content,
+      problemUrl: buildHandlerUrl(this, 'problem_detail', { pid: this.pdoc.docId }, { tid }),
+    };
   }
 }
 
@@ -426,11 +575,17 @@ abstract class ScratchSubmissionHandler extends Handler {
   async prepare(domainId: string, rid: any) {
     this.rdoc = await RecordModel.get(domainId, rid);
     if (!this.rdoc) throw new NotFoundError(`Record ${rid}`);
-    const submission = await ScratchModel.getSubmission(domainId, rid);
-    if (!submission) throw new NotFoundError('Scratch submission');
-    this.submission = submission;
     this.pdoc = await ProblemModel.get(domainId, this.rdoc.pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${this.rdoc.pid}`);
+    const submission = await ScratchModel.getSubmission(domainId, rid);
+    if (submission) {
+      this.submission = submission;
+      return;
+    }
+    const config = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);
+    const fallback = buildSubmissionFromRecord(domainId, this.pdoc, this.rdoc, config);
+    if (!fallback) throw new NotFoundError('Scratch submission');
+    this.submission = fallback;
   }
 
   canManageProblem() {
@@ -528,12 +683,18 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
     this.ensureCanScoreSubmission();
     const maxScore = this.submission.maxScore || 100;
     if (!Number.isFinite(score) || score < 0 || score > maxScore) throw new ValidationError('score');
-    await ScratchModel.updateSubmission(domainId, this.rdoc._id, {
+    const scorePatch = {
       score,
       maxScore,
       manualScoreBy: this.user._id,
       manualScoreAt: new Date(),
       manualComment: comment,
+    };
+    const updated = await ScratchModel.updateSubmission(domainId, this.rdoc._id, scorePatch);
+    if (!updated) await ScratchModel.addSubmission({
+      ...this.submission,
+      ...scorePatch,
+      updatedAt: new Date(),
     });
     await JudgeResultCallbackContext.end(domainId, this.rdoc._id, {
       status: scoreToStatus(score, maxScore),
@@ -558,7 +719,17 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
     this.ensureScratchEnabled();
     const canReadAll = this.user.hasPerm(PERM.PERM_READ_RECORD_CODE) || this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || this.user.hasPerm(PERM.PERM_EDIT_PROBLEM);
     const query = canReadAll ? {} : { userId: this.user._id };
-    const docs = await ScratchModel.getProblemSubmissions(domainId, this.pdoc.docId, query).limit(100).toArray();
+    const metaDocs = await ScratchModel.getProblemSubmissions(domainId, this.pdoc.docId, query).limit(100).toArray();
+    let fallbackDocs: ScratchSubmissionMeta[] = [];
+    if (typeof RecordModel.getMulti === 'function') {
+      const recordQuery = canReadAll ? { pid: this.pdoc.docId } : { pid: this.pdoc.docId, uid: this.user._id };
+      const rdocs = await RecordModel.getMulti(domainId, recordQuery).sort({ _id: -1 }).limit(100).toArray();
+      fallbackDocs = rdocs
+        .filter((rdoc: any) => (rdoc.lang === SCRATCH_LANG || rdoc.source === 'scratch') && !!parseRecordProjectFile(rdoc))
+        .map((rdoc: any) => buildSubmissionFromRecord(domainId, this.pdoc, rdoc, this.scratchConfig))
+        .filter(Boolean) as ScratchSubmissionMeta[];
+    }
+    const docs = mergeSubmissionRecords(metaDocs, fallbackDocs);
     if (this.request.json) {
       this.response.body = { submissions: docs };
       return;
@@ -580,6 +751,7 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
   ctx.Route('scratch_problem_edit', '/scratch/problem/:pid/edit', bindConfig(ScratchProblemEditHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_config', '/scratch/problem/:pid/config', bindConfig(ScratchProblemConfigHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_template', '/scratch/problem/:pid/template', bindConfig(ScratchProblemTemplateHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_problem_statement', '/scratch/problem/:pid/statement', bindConfig(ScratchProblemStatementHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_submissions', '/scratch/problem/:pid/submissions', bindConfig(ScratchProblemSubmissionsHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_editor', '/scratch/problem/:pid/editor', bindConfig(ScratchEditorHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_save_draft', '/scratch/problem/:pid/draft', bindConfig(ScratchDraftSaveHandler), PERM.PERM_SUBMIT_PROBLEM);
@@ -611,7 +783,7 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
     if (!pdoc?.docId) return undefined;
     const config = await ScratchModel.getProblemConfig(pdoc.domainId, pdoc.docId, pluginConfig);
     if (!['editor', 'both'].includes(config.submitMode)) return;
-    appendScratchProblemActions(pdoc, handler, config);
+    appendScratchProblemActionsSafe(pdoc, handler, config);
   });
 }
 
