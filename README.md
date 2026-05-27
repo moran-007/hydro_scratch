@@ -1,6 +1,6 @@
-# hydro-plugin-scratch
+# hydro_scratch
 
-Hydro plugin for Scratch problems.
+hydro的手动测评及出题插件。
 
 ## Features
 
