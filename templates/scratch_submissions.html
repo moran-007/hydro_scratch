@@ -1,56 +1,142 @@
 {% extends "layout/basic.html" %}
 {% block content %}
 {{ set(UiContext, 'pdoc', pdoc) }}
-<div class="section">
-  <div class="section__header">
-    <h1 class="section__title">{{ _('Scratch Submissions') }}</h1>
-    <div class="section__tools">
-      <a class="rounded button" href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ _('Problem') }}</a>
-      <a class="rounded button" href="{{ url('scratch_problem_edit', pid=pdoc.docId) }}">{{ _('Edit') }}</a>
-      <a class="rounded button" href="{{ url('scratch_problem_config', pid=pdoc.docId) }}">{{ _('Settings') }}</a>
+<div class="section scratch-submissions">
+  <div class="section__header scratch-submissions__header">
+    <div>
+      <h1 class="section__title">
+        {% if canManage %}
+        {{ _('Scratch Review Queue') }}
+        {% else %}
+        {{ _('My Scratch Submissions') }}
+        {% endif %}
+      </h1>
+      <p class="scratch-submissions__hint">
+        {% if canManage %}
+        {{ _('Teacher view: all Scratch submissions for this problem are listed here.') }}
+        {% else %}
+        {{ _('Student view: your submitted Scratch projects and record links are listed here.') }}
+        {% endif %}
+      </p>
+    </div>
+    <div class="section__tools scratch-submissions__tools">
+      <a class="rounded button" href="{{ problemUrl }}">{{ _('Problem') }}</a>
+      <a class="rounded button" href="{{ editorUrl }}">{{ _('Scratch Editor') }}</a>
+      {% if canManage %}
+      <a class="rounded button" href="{{ editUrl }}">{{ _('Edit Problem') }}</a>
+      <a class="rounded button" href="{{ configUrl }}">{{ _('Settings') }}</a>
+      {% endif %}
     </div>
   </div>
   <div class="section__body">
     {% if submissions.length %}
-    <table class="data-table scratch-submissions-table">
-      <thead>
-        <tr>
-          <th>{{ _('Record') }}</th>
-          <th>{{ _('User') }}</th>
-          <th>{{ _('Source') }}</th>
-          <th>{{ _('File') }}</th>
-          <th>{{ _('Score') }}</th>
-          <th>{{ _('Created At') }}</th>
-          <th>{{ _('Actions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in submissions %}
-        <tr>
-          <td><a href="{{ url('record_detail', rid=item.rid) }}">{{ item.rid }}</a></td>
-          <td>{{ item.userId }}</td>
-          <td>{{ item.source }}</td>
-          <td>{{ item.originalName }}</td>
-          <td>{{ item.score if item.score !== undefined else '-' }} / {{ item.maxScore }}</td>
-          <td>{{ item.createdAt }}</td>
-          <td>
-            <a href="{{ url('scratch_submission_preview', rid=item.rid) }}">
-              {{ _('Preview') }}
-            </a>
-            {% if canScore %}
-            &nbsp;|&nbsp;
-            <a href="{{ url('scratch_submission_score', rid=item.rid) }}">
-              {{ _('Score') }}
-            </a>
+    <div class="scratch-submissions__table-wrap">
+      <table class="data-table scratch-submissions-table">
+        <thead>
+          <tr>
+            <th>{{ _('Record') }}</th>
+            {% if canReadAll %}
+            <th>{{ _('User') }}</th>
             {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+            <th>{{ _('Source') }}</th>
+            <th>{{ _('File') }}</th>
+            <th>{{ _('Score') }}</th>
+            <th>{{ _('Created At') }}</th>
+            <th>{{ _('Actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in submissions %}
+          <tr>
+            <td><a href="{{ url('record_detail', rid=item.rid) }}">{{ item.rid }}</a></td>
+            {% if canReadAll %}
+            <td>{{ item.userId }}</td>
+            {% endif %}
+            <td>{{ item.source }}</td>
+            <td class="scratch-submissions__file">{{ item.originalName }}</td>
+            <td>{{ item.score if item.score !== undefined else '-' }} / {{ item.maxScore }}</td>
+            <td>{{ item.createdAt }}</td>
+            <td>
+              <div class="scratch-submissions__actions">
+                <a class="rounded button small" href="{{ url('scratch_submission_preview', rid=item.rid) }}">{{ _('Preview') }}</a>
+                <a class="rounded button small" href="{{ url('scratch_submission_project', rid=item.rid) }}">{{ _('Download') }}</a>
+                <a class="rounded button small" href="{{ url('record_detail', rid=item.rid) }}">{{ _('Record') }}</a>
+                {% if canScore %}
+                <a class="rounded primary button small" href="{{ url('scratch_submission_score', rid=item.rid) }}">{{ _('Score') }}</a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
-    <p>{{ _('No Scratch submissions yet.') }}</p>
+    <div class="scratch-submissions__empty">
+      {% if canManage %}
+      {{ _('No Scratch submissions were found. If students already submitted, this page will also scan Hydro records as a fallback.') }}
+      {% else %}
+      {{ _('You have not submitted a Scratch project for this problem yet.') }}
+      {% endif %}
+    </div>
     {% endif %}
   </div>
 </div>
+
+<style>
+.scratch-submissions__header {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.scratch-submissions__hint {
+  margin: 6px 0 0;
+  color: #666;
+  font-size: 13px;
+}
+
+.scratch-submissions__tools,
+.scratch-submissions__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scratch-submissions__tools {
+  justify-content: flex-end;
+}
+
+.scratch-submissions__table-wrap {
+  overflow-x: auto;
+}
+
+.scratch-submissions__file {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scratch-submissions__actions .button {
+  margin: 0;
+}
+
+.scratch-submissions__empty {
+  padding: 20px;
+  border: 1px dashed #d8d8d8;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #666;
+}
+
+@media (max-width: 640px) {
+  .scratch-submissions__header {
+    flex-direction: column;
+  }
+
+  .scratch-submissions__tools {
+    justify-content: flex-start;
+  }
+}
+</style>
 {% endblock %}

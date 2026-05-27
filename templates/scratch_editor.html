@@ -8,7 +8,7 @@
     </div>
     <div class="workspace-actions">
       <a class="rounded button" href="{{ previewUrl }}">{{ _('Problem') }}</a>
-      <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
+      <a class="rounded button" href="{{ submissionsUrl }}">{{ _(submissionsLabel or 'Submissions') }}</a>
       {% if config.allowDownloadTemplate and config.templatePath %}
       <a class="rounded button" href="{{ templateUrl }}">
         <span class="icon icon-download"></span>
@@ -479,7 +479,7 @@
       setStatus('Submitting...', 'saving');
       const result = await uploadProject(SUBMIT_URL, 'file', 'submit');
       setStatus('Submitted.', '');
-      if (result && result.previewUrl) window.location.href = result.previewUrl;
+      window.location.href = (result && (result.problemUrl || result.previewUrl)) || PROBLEM_URL;
     } catch (error) {
       console.error('Scratch submit failed:', error);
       setStatus('Submit failed.', 'error');

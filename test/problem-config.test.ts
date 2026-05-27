@@ -610,4 +610,60 @@ describe('Scratch problem config upsert', () => {
       }],
     });
   });
+
+  it('ScratchProblemSubmissionsHandler.get treats numeric problem owner as teacher access', async () => {
+    const { defaultProblemConfig } = await import('../src/config');
+    const { ScratchProblemSubmissionsHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemSubmissionsHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.pdoc = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Scratch title',
+      owner: 11,
+    };
+    handler.scratchConfig = {
+      ...defaultProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG),
+      enabled: true,
+      maxScore: 100,
+    };
+    handler.request = {};
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => false,
+    };
+    hydroState.recordGetMulti.mockReturnValue({
+      sort() { return this; },
+      limit() { return this; },
+      async toArray() {
+        return [{
+          _id: 'rid-student',
+          domainId: 'system',
+          pid: 1001,
+          uid: 22,
+          lang: 'scratch3',
+          source: 'scratch',
+          score: 0,
+          files: { code: '22/project-file#student.sb3' },
+          judgeAt: new Date('2026-05-26T11:47:40.443Z'),
+        }];
+      },
+    });
+
+    await expect(handler.get('system')).resolves.toBeUndefined();
+
+    expect(hydroState.recordGetMulti).toHaveBeenCalledWith('system', { pid: 1001 });
+    expect(handler.response.body).toMatchObject({
+      canManage: true,
+      canReadAll: true,
+      canScore: true,
+      submissions: [{
+        rid: 'rid-student',
+        userId: 22,
+      }],
+    });
+  });
 });

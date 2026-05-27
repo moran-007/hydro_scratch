@@ -3,14 +3,13 @@ import {
   Handler,
   NotFoundError,
   PERM,
-  ProblemModel,
-  StorageModel,
   Types,
   ValidationError,
   param,
 } from 'hydrooj';
 import { buildScratchEditorUrl } from './assets';
 import { ScratchValidationError } from './errors';
+import { HydroApi } from './hydro-api';
 import { ScratchModel } from './model';
 import { limitsFromMB, validateScratchProject } from './sb3';
 import type { PluginConfig, ScratchProblemConfig } from './types';
@@ -35,11 +34,36 @@ function appendQuery(url: string, query: Record<string, string | number | boolea
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
   });
+  if (!search.toString()) return url;
   return `${url}${url.includes('?') ? '&' : '?'}${search.toString()}`;
 }
 
 function getQueryValue(handler: Handler, name: string) {
   return handler.request.query?.[name] ?? handler.args?.[name];
+}
+
+function sameUserId(left: unknown, right: unknown) {
+  if (left === undefined || left === null || right === undefined || right === null) return false;
+  return String(left) === String(right);
+}
+
+function includesUserId(value: unknown, userId: unknown) {
+  if (Array.isArray(value)) return value.some((item) => sameUserId(item, userId));
+  return sameUserId(value, userId);
+}
+
+function userOwnsProblem(user: any, pdoc: any) {
+  if (!user || !pdoc) return false;
+  if (typeof user.own === 'function') {
+    try {
+      if (user.own(pdoc, PERM.PERM_EDIT_PROBLEM_SELF)) return true;
+    } catch { /* fall through to field checks */ }
+  }
+  return includesUserId(pdoc.owner, user._id) || includesUserId(pdoc.maintainer, user._id);
+}
+
+function userCanManageProblem(user: any, pdoc: any) {
+  return userOwnsProblem(user, pdoc) || user?.hasPerm?.(PERM.PERM_EDIT_PROBLEM);
 }
 
 abstract class ScratchEditorBaseHandler extends Handler {
@@ -49,7 +73,7 @@ abstract class ScratchEditorBaseHandler extends Handler {
 
   @param('pid', Types.ProblemId)
   async prepare(domainId: string, pid: number) {
-    this.pdoc = await ProblemModel.get(domainId, pid);
+    this.pdoc = await HydroApi.problem.get(domainId, pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${pid}`);
     this.scratchConfig = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);
     if (!this.scratchConfig.enabled) throw new NotFoundError('Scratch problem');
@@ -70,6 +94,7 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
     const tid = getQueryValue(this, 'tid') as string | undefined;
     const problemQuery = { scratch: 0, tid };
     const problemUrl = appendQuery(this.url('problem_detail', { pid: this.pdoc.docId }), problemQuery);
+    const canManage = userCanManageProblem(this.user, this.pdoc);
     this.response.template = 'scratch_editor.html';
     this.response.body = {
       pdoc: this.pdoc,
@@ -81,7 +106,7 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
       problemDescriptionUrl: appendQuery(this.url('scratch_problem_statement', { pid: this.pdoc.docId }), { tid }),
       templateUrl: this.scratchConfig.templatePath ? this.url('scratch_problem_template', { pid: this.pdoc.docId }) : '',
       templateProjectUrl: this.scratchConfig.templatePath
-        ? this.url('scratch_problem_template', { pid: this.pdoc.docId, query: { raw: 1 } })
+        ? appendQuery(this.url('scratch_problem_template', { pid: this.pdoc.docId }), { raw: 1 })
         : '',
       submitUrl: this.url('scratch_submit', { pid: this.pdoc.docId }),
       saveDraftUrl: this.url('scratch_save_draft', { pid: this.pdoc.docId }),
@@ -89,6 +114,8 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
       draftProjectUrl: this.url('scratch_draft_project', { pid: this.pdoc.docId }),
       previewUrl: problemUrl,
       submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
+      submissionsLabel: canManage ? 'Review Submissions' : 'My Submissions',
+      canManage,
     };
   }
 }
@@ -103,8 +130,8 @@ export class ScratchDraftSaveHandler extends ScratchEditorBaseHandler {
     const validation = await this.validateProject(file.filepath, originalName);
     const draftId = `p${this.pdoc.docId}-u${this.user._id}`;
     const draftPath = `${this.pluginConfig.storagePrefix}/${domainId}/draft/${this.pdoc.docId}/${this.user._id}/current.sb3`;
-    await StorageModel.put(draftPath, file.filepath, this.user._id);
-    const meta = await StorageModel.getMeta(draftPath);
+    await HydroApi.storage.put(draftPath, file.filepath, this.user._id);
+    const meta = await HydroApi.storage.getMeta(draftPath);
     await ScratchModel.saveDraft({
       domainId,
       problemId: this.pdoc.docId,
@@ -139,7 +166,7 @@ export class ScratchDraftLoadHandler extends ScratchEditorBaseHandler {
       this.response.body = { draft: null };
       return;
     }
-    const fileUrl = await StorageModel.signDownloadLink(draft.draftPath, draft.originalName, false, 'user');
+    const fileUrl = await HydroApi.storage.signDownloadLink(draft.draftPath, draft.originalName, false, 'user');
     this.response.body = {
       draft: {
         draftId: draft.draftId,
@@ -158,7 +185,7 @@ export class ScratchDraftProjectHandler extends ScratchEditorBaseHandler {
     if (!this.user.hasPerm(PERM.PERM_VIEW_PROBLEM)) throw new ForbiddenError();
     const draft = await ScratchModel.getLatestDraft(domainId, this.pdoc.docId, this.user._id);
     if (!draft) throw new NotFoundError('Scratch draft');
-    this.response.body = await StorageModel.get(draft.draftPath);
+    this.response.body = await HydroApi.storage.get(draft.draftPath);
     this.response.type = 'application/octet-stream';
     this.response.disposition = `attachment; filename="${encodeURIComponent(draft.originalName)}"`;
   }

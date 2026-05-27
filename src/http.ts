@@ -1,16 +1,10 @@
 import {
-  ContestModel,
-  DomainModel,
   FileTooLargeError,
   ForbiddenError,
   Handler,
-  JudgeResultCallbackContext,
   NotFoundError,
   PERM,
-  ProblemModel,
-  RecordModel,
   STATUS,
-  StorageModel,
   Types,
   ValidationError,
   nanoid,
@@ -25,6 +19,7 @@ import {
   ScratchEditorHandler,
 } from './editor';
 import { ScratchValidationError } from './errors';
+import { HydroApi } from './hydro-api';
 import { ScratchModel } from './model';
 import { limitsFromMB, validateScratchProject } from './sb3';
 import type { PluginConfig, ScratchProblemConfig, ScratchSubmitSource, ScratchSubmissionMeta } from './types';
@@ -80,6 +75,7 @@ function appendQuery(url: string, query: Record<string, string | number | boolea
   Object.entries(query).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
   });
+  if (!search.toString()) return url;
   return `${url}${url.includes('?') ? '&' : '?'}${search.toString()}`;
 }
 
@@ -100,13 +96,41 @@ function buildHandlerUrl(
   return Object.keys(cleanQuery).length ? appendQuery(base, cleanQuery) : base;
 }
 
+function sameUserId(left: unknown, right: unknown) {
+  if (left === undefined || left === null || right === undefined || right === null) return false;
+  return String(left) === String(right);
+}
+
+function includesUserId(value: unknown, userId: unknown) {
+  if (Array.isArray(value)) return value.some((item) => sameUserId(item, userId));
+  return sameUserId(value, userId);
+}
+
+function userOwnsProblem(user: any, pdoc: any) {
+  if (!user || !pdoc) return false;
+  if (typeof user.own === 'function') {
+    try {
+      if (user.own(pdoc, PERM.PERM_EDIT_PROBLEM_SELF)) return true;
+    } catch { /* fall through to field checks */ }
+  }
+  return includesUserId(pdoc.owner, user._id) || includesUserId(pdoc.maintainer, user._id);
+}
+
+function userCanManageProblem(user: any, pdoc: any) {
+  return userOwnsProblem(user, pdoc) || user?.hasPerm?.(PERM.PERM_EDIT_PROBLEM);
+}
+
+function userCanReadAllScratchRecords(user: any, pdoc: any) {
+  return userCanManageProblem(user, pdoc) || user?.hasPerm?.(PERM.PERM_READ_RECORD_CODE);
+}
+
 function appendScratchProblemActions(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
   if (!config.enabled || typeof pdoc.content !== 'string' || pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
   const tid = getQueryValue(handler, 'tid') as string | undefined;
   const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
   const submissionsUrl = buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId });
   const editUrl = buildHandlerUrl(handler, 'scratch_problem_edit', { pid: pdoc.docId });
-  const canManage = handler.user?.own?.(pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || handler.user?.hasPerm(PERM.PERM_EDIT_PROBLEM);
+  const canManage = userCanManageProblem(handler.user, pdoc);
   const managerLinks = canManage
     ? `\n\n教师入口：[查看提交 / 手动评分](${submissionsUrl}) | [编辑 Scratch 题目](${editUrl})`
     : '';
@@ -128,7 +152,7 @@ function appendScratchProblemActionsSafe(pdoc: any, handler: Handler, config: Sc
   const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
   const submissionsUrl = buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId });
   const editUrl = buildHandlerUrl(handler, 'scratch_problem_edit', { pid: pdoc.docId });
-  const canManage = handler.user?.own?.(pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || handler.user?.hasPerm(PERM.PERM_EDIT_PROBLEM);
+  const canManage = userCanManageProblem(handler.user, pdoc);
   const managerLinks = canManage
     ? `\n\nTeacher entry: [Submissions / Manual score](${submissionsUrl}) | [Edit Scratch problem](${editUrl})`
     : '';
@@ -140,7 +164,7 @@ ${SCRATCH_ACTIONS_MARKER}
 
 **Scratch Online Editor**
 
-[Open Scratch Online Editor](${editorUrl})
+[Open Scratch Online Editor](${editorUrl}) | [My Scratch submissions](${submissionsUrl})
 ${managerLinks}`;
 }
 
@@ -286,13 +310,13 @@ abstract class ScratchProblemHandler extends Handler {
 
   @param('pid', Types.ProblemId)
   async prepare(domainId: string, pid: number) {
-    this.pdoc = await ProblemModel.get(domainId, pid);
+    this.pdoc = await HydroApi.problem.get(domainId, pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${pid}`);
     this.scratchConfig = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);
   }
 
   ensureProblemManager() {
-    if (!this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF) && !this.user.hasPerm(PERM.PERM_EDIT_PROBLEM)) {
+    if (!userCanManageProblem(this.user, this.pdoc)) {
       throw new ForbiddenError();
     }
   }
@@ -375,7 +399,7 @@ export class ScratchProblemCreateHandler extends Handler {
   @post('hidden', Types.Boolean, true)
   async post(domainId: string, title: string, content = '', pid: string | number = '', hidden = false) {
     if (typeof pid !== 'string') pid = `P${pid}`;
-    const docId = await ProblemModel.add(
+    const docId = await HydroApi.problem.add(
       domainId,
       pid,
       title,
@@ -423,10 +447,10 @@ export class ScratchProblemEditHandler extends ScratchProblemHandler {
     this.ensureProblemManager();
     if (typeof pid === 'string' && pid && !/^(?:[a-z0-9]{1,10}-)?[a-z][a-z0-9]*$/i.test(pid)) throw new ValidationError('pid');
     const nextPid = normalizeProblemPid(pid, this.pdoc.pid || this.pdoc.docId);
-    if (nextPid !== this.pdoc.pid && await ProblemModel.get(domainId, nextPid)) {
+    if (nextPid !== this.pdoc.pid && await HydroApi.problem.get(domainId, nextPid)) {
       throw new ValidationError(`Problem ${nextPid} already exists.`);
     }
-    const pdoc = await ProblemModel.edit(domainId, this.pdoc.docId, {
+    const pdoc = await HydroApi.problem.edit(domainId, this.pdoc.docId, {
       title,
       content,
       pid: nextPid,
@@ -448,12 +472,12 @@ export class ScratchProblemTemplateHandler extends ScratchProblemHandler {
     if (!this.scratchConfig.templatePath) throw new NotFoundError('Scratch template');
     if (!this.scratchConfig.allowDownloadTemplate) this.ensureProblemManager();
     if (this.request.query?.raw || this.args.raw) {
-      this.response.body = await StorageModel.get(this.scratchConfig.templatePath);
+      this.response.body = await HydroApi.storage.get(this.scratchConfig.templatePath);
       this.response.type = 'application/octet-stream';
       this.response.disposition = `attachment; filename="${encodeURIComponent(this.scratchConfig.templateName || `problem-${this.pdoc.docId}-template.sb3`)}"`;
       return;
     }
-    this.response.redirect = await StorageModel.signDownloadLink(
+    this.response.redirect = await HydroApi.storage.signDownloadLink(
       this.scratchConfig.templatePath,
       this.scratchConfig.templateName || `problem-${this.pdoc.docId}-template.sb3`,
       false,
@@ -469,8 +493,8 @@ export class ScratchProblemTemplateHandler extends ScratchProblemHandler {
     const originalName = filenameFor(file.originalFilename, `problem-${this.pdoc.docId}-template.sb3`);
     const validation = await validateUploadedScratchProject(file.filepath, originalName, this.scratchConfig);
     const templatePath = `${this.pluginConfig.storagePrefix}/${this.pdoc.domainId}/problem/${this.pdoc.docId}/template.sb3`;
-    await StorageModel.put(templatePath, file.filepath, this.user._id);
-    const meta = await StorageModel.getMeta(templatePath);
+    await HydroApi.storage.put(templatePath, file.filepath, this.user._id);
+    const meta = await HydroApi.storage.getMeta(templatePath);
     const config = await ScratchModel.setProblemConfig(this.pdoc.domainId, this.pdoc.docId, this.pluginConfig, {
       ...this.scratchConfig,
       templatePath,
@@ -498,7 +522,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     const originalName = filenameFor(file.originalFilename, `scratch-${Date.now()}.sb3`);
     const validation = await validateUploadedScratchProject(file.filepath, originalName, this.scratchConfig);
 
-    const rid = await RecordModel.add(
+    const rid = await HydroApi.record.add(
       domainId,
       this.pdoc.docId,
       this.user._id,
@@ -509,8 +533,8 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     );
     const submissionFileId = `${this.user._id}/${nanoid()}`;
     const projectPath = `submission/${submissionFileId}`;
-    await StorageModel.put(projectPath, file.filepath, this.user._id);
-    const meta = await StorageModel.getMeta(projectPath);
+    await HydroApi.storage.put(projectPath, file.filepath, this.user._id);
+    const meta = await HydroApi.storage.getMeta(projectPath);
     const submission: ScratchSubmissionMeta = {
       domainId,
       rid,
@@ -527,7 +551,19 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       updatedAt: new Date(),
     };
     await ScratchModel.addSubmission(submission);
-    await RecordModel.update(domainId, rid, {
+    const problemUrl = buildHandlerUrl(this, 'problem_detail', { pid: this.pdoc.docId }, {
+      scratch: 0,
+      tid: tid ? String(tid) : undefined,
+    });
+    const previewUrl = this.url('scratch_submission_preview', { rid });
+    const historyUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
+    await HydroApi.record.update(domainId, rid, {
+      code: [
+        'Scratch project submitted.',
+        `Preview: ${previewUrl}`,
+        `History: ${historyUrl}`,
+        `File: ${originalName}`,
+      ].join('\n'),
       files: { code: `${submissionFileId}#${originalName}` },
       status: STATUS_IGNORED,
       score: 0,
@@ -537,7 +573,11 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       judgeAt: new Date(),
       judger: 'scratch',
       source: 'scratch',
-      judgeTexts: ['Scratch submission uploaded. Waiting for manual score.'],
+      judgeTexts: [
+        'Scratch submission uploaded. Waiting for manual score.',
+        `Scratch preview: ${previewUrl}`,
+        `Scratch history: ${historyUrl}`,
+      ],
       testCases: [{
         id: 0,
         subtaskId: 0,
@@ -549,16 +589,19 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       }],
     });
     await Promise.all([
-      ProblemModel.inc(domainId, this.pdoc.docId, 'nSubmit', 1),
-      DomainModel.incUserInDomain(domainId, this.user._id, 'nSubmit'),
-      tid && ContestModel.updateStatus(domainId, tid, this.user._id, rid, this.pdoc.docId),
+      HydroApi.problem.inc(domainId, this.pdoc.docId, 'nSubmit', 1),
+      HydroApi.domain.incUserInDomain(domainId, this.user._id, 'nSubmit'),
+      tid && HydroApi.contest.updateStatus(domainId, tid, this.user._id, rid, this.pdoc.docId),
     ]);
     this.response.body = {
       rid,
       status: 'Waiting',
       projectPath,
       validation,
-      previewUrl: this.url('scratch_submission_preview', { rid }),
+      problemUrl,
+      previewUrl,
+      historyUrl,
+      recordUrl: this.url('record_detail', { rid }),
       downloadUrl: this.url('scratch_submission_project', { rid }),
       scoreUrl: this.url('scratch_submission_score', { rid }),
     };
@@ -573,9 +616,9 @@ abstract class ScratchSubmissionHandler extends Handler {
 
   @param('rid', Types.ObjectId)
   async prepare(domainId: string, rid: any) {
-    this.rdoc = await RecordModel.get(domainId, rid);
+    this.rdoc = await HydroApi.record.get(domainId, rid);
     if (!this.rdoc) throw new NotFoundError(`Record ${rid}`);
-    this.pdoc = await ProblemModel.get(domainId, this.rdoc.pid);
+    this.pdoc = await HydroApi.problem.get(domainId, this.rdoc.pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${this.rdoc.pid}`);
     const submission = await ScratchModel.getSubmission(domainId, rid);
     if (submission) {
@@ -589,7 +632,7 @@ abstract class ScratchSubmissionHandler extends Handler {
   }
 
   canManageProblem() {
-    return this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || this.user.hasPerm(PERM.PERM_EDIT_PROBLEM);
+    return userCanManageProblem(this.user, this.pdoc);
   }
 
   ensureCanReadSubmission() {
@@ -608,12 +651,12 @@ export class ScratchSubmissionProjectHandler extends ScratchSubmissionHandler {
   async get() {
     this.ensureCanReadSubmission();
     if (hasQueryFlag(this, 'raw')) {
-      this.response.body = await StorageModel.get(this.submission.projectPath);
+      this.response.body = await HydroApi.storage.get(this.submission.projectPath);
       this.response.type = 'application/octet-stream';
       this.response.disposition = `attachment; filename="${encodeURIComponent(this.submission.originalName)}"`;
       return;
     }
-    this.response.redirect = await StorageModel.signDownloadLink(
+    this.response.redirect = await HydroApi.storage.signDownloadLink(
       this.submission.projectPath,
       this.submission.originalName,
       false,
@@ -636,6 +679,7 @@ export class ScratchSubmissionPreviewHandler extends ScratchSubmissionHandler {
       downloadUrl: this.url('scratch_submission_project', { rid: this.rdoc._id }),
       reportUrl: this.url('scratch_submission_report', { rid: this.rdoc._id }),
       scoreUrl: this.url('scratch_submission_score', { rid: this.rdoc._id }),
+      problemUrl: this.url('problem_detail', { pid: this.pdoc.docId }),
       submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       canScore: this.canManageProblem(),
     };
@@ -696,7 +740,7 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       ...scorePatch,
       updatedAt: new Date(),
     });
-    await JudgeResultCallbackContext.end(domainId, this.rdoc._id, {
+    await HydroApi.judge.end(domainId, this.rdoc._id, {
       status: scoreToStatus(score, maxScore),
       score,
       time: 0,
@@ -717,28 +761,32 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
 export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
   async get(domainId: string) {
     this.ensureScratchEnabled();
-    const canReadAll = this.user.hasPerm(PERM.PERM_READ_RECORD_CODE) || this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || this.user.hasPerm(PERM.PERM_EDIT_PROBLEM);
+    const canManage = userCanManageProblem(this.user, this.pdoc);
+    const canReadAll = userCanReadAllScratchRecords(this.user, this.pdoc);
     const query = canReadAll ? {} : { userId: this.user._id };
     const metaDocs = await ScratchModel.getProblemSubmissions(domainId, this.pdoc.docId, query).limit(100).toArray();
-    let fallbackDocs: ScratchSubmissionMeta[] = [];
-    if (typeof RecordModel.getMulti === 'function') {
-      const recordQuery = canReadAll ? { pid: this.pdoc.docId } : { pid: this.pdoc.docId, uid: this.user._id };
-      const rdocs = await RecordModel.getMulti(domainId, recordQuery).sort({ _id: -1 }).limit(100).toArray();
-      fallbackDocs = rdocs
-        .filter((rdoc: any) => (rdoc.lang === SCRATCH_LANG || rdoc.source === 'scratch') && !!parseRecordProjectFile(rdoc))
-        .map((rdoc: any) => buildSubmissionFromRecord(domainId, this.pdoc, rdoc, this.scratchConfig))
-        .filter(Boolean) as ScratchSubmissionMeta[];
-    }
+    const recordQuery = canReadAll ? { pid: this.pdoc.docId } : { pid: this.pdoc.docId, uid: this.user._id };
+    const rdocs = await HydroApi.record.list(domainId, recordQuery, { sort: { _id: -1 }, limit: 100 });
+    const fallbackDocs = rdocs
+      .filter((rdoc: any) => (rdoc.lang === SCRATCH_LANG || rdoc.source === 'scratch') && !!parseRecordProjectFile(rdoc))
+      .map((rdoc: any) => buildSubmissionFromRecord(domainId, this.pdoc, rdoc, this.scratchConfig))
+      .filter(Boolean) as ScratchSubmissionMeta[];
     const docs = mergeSubmissionRecords(metaDocs, fallbackDocs);
     if (this.request.json) {
-      this.response.body = { submissions: docs };
+      this.response.body = { submissions: docs, canManage, canReadAll };
       return;
     }
     this.response.template = 'scratch_submissions.html';
     this.response.body = {
       pdoc: this.pdoc,
       submissions: docs,
-      canScore: this.user.hasPerm(PERM.PERM_EDIT_PROBLEM) || this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF),
+      canManage,
+      canReadAll,
+      canScore: canManage,
+      editorUrl: this.url('scratch_editor', { pid: this.pdoc.docId }),
+      problemUrl: this.url('problem_detail', { pid: this.pdoc.docId }),
+      editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
+      configUrl: this.url('scratch_problem_config', { pid: this.pdoc.docId }),
     };
   }
 }
@@ -761,7 +809,7 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
   ctx.Route('scratch_submission_project', '/scratch/submission/:rid/project', bindConfig(ScratchSubmissionProjectHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_submission_preview', '/scratch/submission/:rid/preview', bindConfig(ScratchSubmissionPreviewHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_submission_report', '/scratch/submission/:rid/report', bindConfig(ScratchSubmissionReportHandler), PERM.PERM_VIEW_PROBLEM);
-  ctx.Route('scratch_submission_score', '/scratch/submission/:rid/score', bindConfig(ScratchSubmissionScoreHandler), PERM.PERM_EDIT_PROBLEM);
+  ctx.Route('scratch_submission_score', '/scratch/submission/:rid/score', bindConfig(ScratchSubmissionScoreHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_asset_internal', '/scratch-assets/internalapi/asset/:filename/get', ScratchAssetProxyHandler);
   ctx.Route('scratch_asset_internal_slash', '/scratch-assets/internalapi/asset/:filename/get/', ScratchAssetProxyHandler);
   ctx.Route('scratch_asset_internal_direct', '/scratch-assets/internalapi/asset/:filename', ScratchAssetProxyHandler);

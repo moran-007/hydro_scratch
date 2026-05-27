@@ -3,7 +3,7 @@
 This plugin is packaged as:
 
 ```text
-release/hydro-plugin-scratch-0.2.5.tgz
+release/hydro-plugin-scratch-0.2.6.tgz
 ```
 
 Deploy it on the production server as the same Linux user that runs Hydro.
@@ -13,7 +13,7 @@ Deploy it on the production server as the same Linux user that runs Hydro.
 From your local machine:
 
 ```bash
-scp release/hydro-plugin-scratch-0.2.5.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.2.6.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -23,7 +23,7 @@ On the server:
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.5.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.6.tgz
 ```
 
 By default the script installs to:
@@ -35,7 +35,7 @@ By default the script installs to:
 Override if your Hydro uses another addon directory:
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.5.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.6.tgz
 ```
 
 ## 3. Restart Hydro

@@ -11,6 +11,7 @@ hydro的手动测评及出题插件。
 - Submit `.sb3` projects from the editor.
 - Store submissions as Hydro records with a downloadable code attachment.
 - Preview, download, list, and manually score Scratch submissions.
+- Keep Hydro model calls behind `src/hydro-api.ts`, making future Hydro API changes easier to patch.
 - Bundle a Scratch GUI build plus Scratch library assets for offline/self-hosted deployments.
 - Serve Scratch library assets through `/scratch-assets`, with remote fallback for missing assets.
 
@@ -57,6 +58,7 @@ POST /scratch/submission/:rid/score
 - Visiting `/p/:pid` keeps the normal Hydro problem page and adds a Scratch online editor link to the statement.
 - Teachers can score from `Scratch Problem -> Submissions -> Preview / Score` or directly from `/scratch/submission/:rid/preview`.
 - Teachers can use the direct scoring page `/scratch/submission/:rid/score` when they need a separate manual scoring entry.
+- Students can open `Scratch Problem -> My Submissions` to view previous Scratch projects, downloads, previews, and Hydro record links.
 - Contest/homework entries preserve `tid` when launched from the Hydro problem page, so manual scoring updates the corresponding scoreboard status.
 - The preview page uses the bundled Scratch editor and reads the submitted `.sb3` from the same Hydro origin, avoiding external-player fetch/CORS failures.
 - Submitted projects are saved under Hydro's standard `submission/` storage prefix so record detail pages can download the `.sb3` attachment.
