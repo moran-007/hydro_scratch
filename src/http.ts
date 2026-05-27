@@ -345,6 +345,7 @@ async function listScratchRecordsForProblem(
     }
   };
   const ownerQuery = uid === undefined ? {} : { uid };
+  addDocs(await HydroApi.record.listByProblems(domainId, problemIds, uid, { sort: { _id: -1 }, limit: uid === undefined ? 1000 : 500 }));
   for (const problemId of problemIds) {
     addDocs(await HydroApi.record.list(domainId, { ...ownerQuery, pid: problemId }, { sort: { _id: -1 }, limit: 100 }));
   }
@@ -620,6 +621,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
   @post('tid', Types.ObjectId, true)
   async post(domainId: string, source: ScratchSubmitSource = 'upload', tid?: any) {
     this.ensureScratchEnabled();
+    const effectiveDomainId = this.pdoc.domainId || domainId;
     if (!['upload', 'both'].includes(this.scratchConfig.submitMode) && source === 'upload') throw new ValidationError('source');
     if (!['editor', 'both'].includes(this.scratchConfig.submitMode) && source === 'editor') throw new ValidationError('source');
     const file = this.request.files?.file;
@@ -631,7 +633,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     const validation = await validateUploadedScratchProject(file.filepath, originalName, this.scratchConfig);
 
     const rid = await HydroApi.record.add(
-      domainId,
+      effectiveDomainId,
       this.pdoc.docId,
       this.user._id,
       SCRATCH_LANG,
@@ -644,7 +646,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     await HydroApi.storage.put(projectPath, file.filepath, this.user._id);
     const meta = await HydroApi.storage.getMeta(projectPath);
     const submission: ScratchSubmissionMeta = {
-      domainId,
+      domainId: effectiveDomainId,
       rid,
       problemId: this.pdoc.docId,
       userId: this.user._id,
@@ -668,7 +670,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     const previewUrl = this.url('scratch_submission_preview', { rid });
     const historyUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
     const scoreUrl = this.url('scratch_submission_score', { rid });
-    await HydroApi.record.update(domainId, rid, {
+    await HydroApi.record.update(effectiveDomainId, rid, {
       code: [
         'Scratch project submitted.',
         `Preview: ${previewUrl}`,
@@ -701,9 +703,9 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       }],
     });
     await Promise.all([
-      HydroApi.problem.inc(domainId, this.pdoc.docId, 'nSubmit', 1),
-      HydroApi.domain.incUserInDomain(domainId, this.user._id, 'nSubmit'),
-      tid && HydroApi.contest.updateStatus(domainId, tid, this.user._id, rid, this.pdoc.docId),
+      HydroApi.problem.inc(effectiveDomainId, this.pdoc.docId, 'nSubmit', 1),
+      HydroApi.domain.incUserInDomain(effectiveDomainId, this.user._id, 'nSubmit'),
+      tid && HydroApi.contest.updateStatus(effectiveDomainId, tid, this.user._id, rid, this.pdoc.docId),
     ]);
     this.response.body = {
       rid,
@@ -728,11 +730,12 @@ abstract class ScratchSubmissionHandler extends Handler {
 
   @param('rid', Types.ObjectId)
   async prepare(domainId: string, rid: any) {
-    this.rdoc = await HydroApi.record.get(domainId, rid);
+    this.rdoc = await HydroApi.record.get(domainId, rid) || await HydroApi.record.get(rid);
     if (!this.rdoc) throw new NotFoundError(`Record ${rid}`);
-    this.pdoc = await HydroApi.problem.get(domainId, this.rdoc.pid);
+    const effectiveDomainId = this.rdoc.domainId || domainId;
+    this.pdoc = await HydroApi.problem.get(effectiveDomainId, this.rdoc.pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${this.rdoc.pid}`);
-    const submission = await ScratchModel.getSubmission(domainId, rid);
+    const submission = await ScratchModel.getSubmission(effectiveDomainId, rid);
     if (submission) {
       this.submission = {
         ...submission,
@@ -742,8 +745,8 @@ abstract class ScratchSubmissionHandler extends Handler {
       };
       return;
     }
-    const config = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);
-    const fallback = buildSubmissionFromRecord(domainId, this.pdoc, this.rdoc, config);
+    const config = await ScratchModel.getProblemConfig(effectiveDomainId, this.pdoc.docId, this.pluginConfig);
+    const fallback = buildSubmissionFromRecord(effectiveDomainId, this.pdoc, this.rdoc, config);
     if (!fallback) throw new NotFoundError('Scratch submission');
     this.submission = fallback;
   }
@@ -842,6 +845,7 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
   @post('comment', Types.String, true)
   async post(domainId: string, score: number, comment = '') {
     this.ensureCanScoreSubmission();
+    const effectiveDomainId = this.pdoc.domainId || this.rdoc.domainId || domainId;
     const maxScore = this.submission.maxScore || 100;
     if (!Number.isFinite(score) || score < 0 || score > maxScore) throw new ValidationError('score');
     const status = scoreToStatus(score, maxScore);
@@ -854,13 +858,14 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       manualScoreAt: new Date(),
       manualComment: comment,
     };
-    const updated = await ScratchModel.updateSubmission(domainId, this.rdoc._id, scorePatch);
+    const updated = await ScratchModel.updateSubmission(effectiveDomainId, this.rdoc._id, scorePatch);
     if (!updated) await ScratchModel.addSubmission({
       ...this.submission,
+      domainId: effectiveDomainId,
       ...scorePatch,
       updatedAt: new Date(),
     });
-    await HydroApi.judge.end(domainId, this.rdoc._id, {
+    await HydroApi.judge.end(effectiveDomainId, this.rdoc._id, {
       status,
       score,
       time: 0,
@@ -894,15 +899,16 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
 export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
   async get(domainId: string) {
     this.ensureScratchEnabled();
+    const effectiveDomainId = this.pdoc.domainId || domainId;
     const canManage = userCanManageProblem(this.user, this.pdoc);
     const canReadAll = userCanReadAllScratchRecords(this.user, this.pdoc);
     const problemIds = getProblemIdCandidates(this.pdoc, this.routePid);
     const query = canReadAll ? {} : { userId: this.user._id };
-    const metaDocs = await listScratchSubmissionMeta(domainId, problemIds, query);
-    const rdocs = await listScratchRecordsForProblem(domainId, problemIds, canReadAll ? undefined : this.user._id);
+    const metaDocs = await listScratchSubmissionMeta(effectiveDomainId, problemIds, query);
+    const rdocs = await listScratchRecordsForProblem(effectiveDomainId, problemIds, canReadAll ? undefined : this.user._id);
     const fallbackDocs = rdocs
       .filter((rdoc: any) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc))
-      .map((rdoc: any) => buildSubmissionFromRecord(domainId, this.pdoc, rdoc, this.scratchConfig))
+      .map((rdoc: any) => buildSubmissionFromRecord(effectiveDomainId, this.pdoc, rdoc, this.scratchConfig))
       .filter(Boolean) as ScratchSubmissionMeta[];
     const docs = mergeSubmissionRecords(metaDocs, fallbackDocs);
     if (this.request.json) {

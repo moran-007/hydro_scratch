@@ -131,8 +131,10 @@ const hydroState = vi.hoisted(() => {
         find: (filter: Record<string, unknown>) => {
           let docs = state.docs.filter((item) => matches(item, filter)).map((item) => clone(item));
           return {
-            sort(sortSpec: Record<string, number>) {
-              const [key, direction] = Object.entries(sortSpec)[0] || [];
+            sort(sortSpec: Record<string, number> | string, directionArg?: number) {
+              const [key, direction] = typeof sortSpec === 'string'
+                ? [sortSpec, directionArg || 1]
+                : Object.entries(sortSpec)[0] || [];
               if (key) {
                 docs = docs.sort((left, right) => {
                   const leftValue = left[key] as Date | number | string | undefined;

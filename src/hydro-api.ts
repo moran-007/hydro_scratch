@@ -21,16 +21,49 @@ async function cursorToArray(cursor: any, options: CursorOptions = {}) {
   let next = cursor;
   const sortSpec = options.sort || { _id: -1 };
   if (sortSpec && typeof next.sort === 'function') {
+    const entries = Object.entries(sortSpec);
     try {
-      next = next.sort(sortSpec);
+      if (entries.length === 1) {
+        const [key, direction] = entries[0];
+        next = next.sort(key, direction);
+      } else {
+        next = next.sort(sortSpec);
+      }
     } catch {
-      const [key, direction] = Object.entries(sortSpec)[0] || [];
-      if (key) next = next.sort(key, direction);
+      try {
+        next = next.sort(sortSpec);
+      } catch {
+        const [key, direction] = entries[0] || [];
+        if (key) next = next.sort(key, direction);
+      }
     }
   }
   if (options.limit && typeof next.limit === 'function') next = next.limit(options.limit);
   if (typeof next.toArray === 'function') return await next.toArray();
   return [];
+}
+
+function uniqueProblemIds(problemIds: any[]) {
+  const values: any[] = [];
+  const seen = new Set<string>();
+  const add = (value: any) => {
+    if (value === undefined || value === null || value === '') return;
+    const key = `${typeof value}:${String(value)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      values.push(value);
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value)) {
+      const numeric = Number(value);
+      const numericKey = `number:${numeric}`;
+      if (!seen.has(numericKey)) {
+        seen.add(numericKey);
+        values.push(numeric);
+      }
+    }
+  };
+  problemIds.forEach(add);
+  return values;
 }
 
 async function listRecordsFromCollection(domainId: string, query: Record<string, any>, options: CursorOptions) {
@@ -62,6 +95,15 @@ export const HydroApi = {
         }
       }
       return await listRecordsFromCollection(domainId, query, options);
+    },
+    async listByProblems(domainId: string, problemIds: any[], uid?: number, options: CursorOptions = {}) {
+      const pids = uniqueProblemIds(problemIds);
+      if (!pids.length) return [];
+      const query: Record<string, any> = {
+        ...(uid === undefined ? {} : { uid }),
+        pid: pids.length === 1 ? pids[0] : { $in: pids },
+      };
+      return await this.list(domainId, query, options);
     },
     async listScratchCandidates(domainId: string, uid?: number, options: CursorOptions = {}) {
       const query: Record<string, any> = {
