@@ -59,7 +59,9 @@ const hydroState = vi.hoisted(() => {
   const recordGet = vi.fn();
   const recordGetMulti = vi.fn();
   const domainInc = vi.fn();
+  const contestGet = vi.fn();
   const contestUpdateStatus = vi.fn();
+  const userGetList = vi.fn();
   const storagePut = vi.fn();
   const storageGetMeta = vi.fn();
   const storageSignDownloadLink = vi.fn();
@@ -80,7 +82,11 @@ const hydroState = vi.hoisted(() => {
       recordGet.mockReset();
       recordGetMulti.mockReset();
       domainInc.mockReset();
+      contestGet.mockReset();
+      contestGet.mockResolvedValue(null);
       contestUpdateStatus.mockReset();
+      userGetList.mockReset();
+      userGetList.mockResolvedValue({});
       storagePut.mockReset();
       storageGetMeta.mockReset();
       storageSignDownloadLink.mockReset();
@@ -174,7 +180,9 @@ const hydroState = vi.hoisted(() => {
     recordGet,
     recordGetMulti,
     domainInc,
+    contestGet,
     contestUpdateStatus,
+    userGetList,
     storagePut,
     storageGetMeta,
     storageSignDownloadLink,
@@ -213,6 +221,7 @@ vi.mock('hydrooj', () => {
       collection: (name: string) => hydroState.collection(name),
     },
     ContestModel: {
+      get: hydroState.contestGet,
       updateStatus: hydroState.contestUpdateStatus,
     },
     DomainModel: {
@@ -254,6 +263,9 @@ vi.mock('hydrooj', () => {
       get: hydroState.storageGet,
       getMeta: hydroState.storageGetMeta,
       signDownloadLink: hydroState.storageSignDownloadLink,
+    },
+    UserModel: {
+      getList: hydroState.userGetList,
     },
     Types: {
       ProblemId: 'ProblemId',

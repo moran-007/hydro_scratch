@@ -478,8 +478,7 @@
     try {
       setStatus('Submitting...', 'saving');
       const result = await uploadProject(SUBMIT_URL, 'file', 'submit');
-      setStatus('Submitted.', '');
-      window.location.href = (result && (result.problemUrl || result.previewUrl)) || PROBLEM_URL;
+      window.location.href = (result && (result.redirectUrl || result.problemUrl || result.previewUrl)) || PROBLEM_URL;
     } catch (error) {
       console.error('Scratch submit failed:', error);
       setStatus('Submit failed.', 'error');

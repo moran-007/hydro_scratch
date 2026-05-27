@@ -1,20 +1,21 @@
-# Hydro Scratch 插件安装与更新教程
+﻿# Hydro Scratch 插件安装与更新教程
 
-当前版本：`0.2.9`
+当前版本：`0.2.10`
 
 推荐文件：
 
-- 首次安装：`release/hydro-plugin-scratch-0.2.9.tgz`
-- 已安装后的免依赖更新：`release/hydro-plugin-scratch-update-0.2.9.zip`
-- Linux 服务器也可用：`release/hydro-plugin-scratch-update-0.2.9.tgz`
+- 首次安装：`release/hydro-plugin-scratch-0.2.10.tgz`
+- 已安装后的免依赖更新：`release/hydro-plugin-scratch-update-0.2.10.zip`
+- Linux 服务器也可用：`release/hydro-plugin-scratch-update-0.2.10.tgz`
 
-## 本次更新 0.2.9
+## 本次更新 0.2.10
 
-- 修复 0.2.8 线上验证中出现的“Hydro 原生测评记录可见，但 Scratch 提交列表仍为空”问题。
-- Scratch 提交列表新增更贴近 Hydro 原生 `/record?pid=...` 的查询方式，优先按题目 `docId/pid` 批量读取 record。
-- 列表、提交、预览和手动评分统一使用题目实际 `domainId` 兜底，降低跨域身份和路由域造成的错查风险。
-- 保留 `Hydro Records` 按钮，方便教师在插件列表和 Hydro 原生记录之间交叉核对。
-- 手动评分继续回写 Hydro 原生评测状态和分数。
+- 提交列表新增用户名、提交时间、来源类型（普通提交 / 比赛 / 作业）、测评状态和手动评分状态。
+- 提交列表新增来源和评分状态筛选，教师可以更快区分比赛、作业和常规提交。
+- 学生提交成功后直接回到题目页面；提交失败仍保留错误提示，不再出现成功弹窗停留。
+- 预览页新增可浮动、可拖动、可调整大小的 Scratch 预览窗口。
+- 手动评分页新增 Scratch 代码预览，教师可边查看作品边评分。
+- 保留并增强 Hydro 原生测评记录兜底查询，避免插件元数据缺失时列表为空。
 
 ## 一、首次安装
 
@@ -37,7 +38,7 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 把标准插件包上传到服务器：
 
 ```bash
-scp release/hydro-plugin-scratch-0.2.9.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.2.10.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -45,7 +46,7 @@ scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.9.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.10.tgz
 ```
 
 默认安装目录：
@@ -57,7 +58,7 @@ chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
 如果你的 Hydro 插件目录不同：
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.9.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.10.tgz
 ```
 
 安装完成后重启 Hydro：
@@ -71,9 +72,11 @@ sudo systemctl restart hydrooj
 
 ## 二、免依赖覆盖更新
 
-适用于已经安装过 `hydro-plugin-scratch`，并且只是更新插件代码、模板、Scratch GUI、素材代理等内容。
+适用于已经安装过 `hydro-plugin-scratch`，并且只是更新插件代码、模板、页面文件等内容。
 
 这一步不需要执行 `npm install`。
+
+`hydro-plugin-scratch-update-0.2.10.zip` 和 `hydro-plugin-scratch-update-0.2.10.tgz` 是增量覆盖包，只包含本次需要变更的文件，不包含完整素材库和完整 Scratch GUI 静态资源。
 
 ### Windows 覆盖更新
 
@@ -83,13 +86,13 @@ sudo systemctl restart hydrooj
 ```powershell
 Copy-Item -Recurse -Force `
   "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch" `
-  "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch.bak.0.2.9"
+  "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch.bak.0.2.10"
 ```
 
 3. 解压：
 
 ```text
-release/hydro-plugin-scratch-update-0.2.9.zip
+release/hydro-plugin-scratch-update-0.2.10.zip
 ```
 
 4. 将解压出来的内容覆盖到：
@@ -107,7 +110,7 @@ release/hydro-plugin-scratch-update-0.2.9.zip
 ```bash
 cd ~/.hydro/addons
 cp -a hydro-plugin-scratch "hydro-plugin-scratch.bak.$(date +%Y%m%d%H%M%S)"
-tar -xzf /tmp/hydro-plugin-scratch-update-0.2.9.tgz -C hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.2.10.tgz -C hydro-plugin-scratch --strip-components=1
 ```
 
 然后重启 Hydro：
@@ -159,7 +162,7 @@ Ctrl + F5
 页面中应加载：
 
 ```text
-gui.js?v=0.2.9
+gui.js?v=0.2.10
 ```
 
 ### 2. 不要重复安装依赖
@@ -167,7 +170,7 @@ gui.js?v=0.2.9
 只要 `package.json` 的 dependencies 没有变化，使用更新包覆盖即可：
 
 ```text
-release/hydro-plugin-scratch-update-0.2.9.zip
+release/hydro-plugin-scratch-update-0.2.10.zip
 ```
 
 不要执行：
@@ -184,7 +187,7 @@ yarn install
 1. 重启 Hydro。
 2. 清浏览器缓存或无痕窗口测试。
 3. 确认插件目录中的 `public/scratch-editor/gui.js` 已被覆盖。
-4. 确认 `public/scratch-editor/index.html` 中版本是 `0.2.9`。
+4. 确认 `public/scratch-editor/index.html` 中版本是 `0.2.10`。
 
 ## 五、回滚
 
@@ -207,3 +210,4 @@ pm2 restart hydro
 ```
 
 回滚后同样需要重启 Hydro。
+

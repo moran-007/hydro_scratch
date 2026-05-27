@@ -6,6 +6,7 @@ import {
   RecordModel,
   StorageModel,
 } from 'hydrooj';
+import * as HydroRuntime from 'hydrooj';
 
 type CursorOptions = {
   sort?: Record<string, 1 | -1>;
@@ -136,10 +137,26 @@ export const HydroApi = {
   },
 
   contest: {
+    get: (...args: any[]) => (ContestModel as any).get(...args),
     updateStatus: (...args: any[]) => (ContestModel as any).updateStatus(...args),
   },
 
   judge: {
     end: (...args: any[]) => (JudgeResultCallbackContext as any).end(...args),
+  },
+
+  user: {
+    async getList(domainId: string, uids: number[]) {
+      const uniqueUids = [...new Set((uids || []).filter((uid) => typeof uid === 'number'))];
+      if (!uniqueUids.length) return {};
+      if (typeof (HydroRuntime as any).UserModel?.getList === 'function') {
+        try {
+          return await (HydroRuntime as any).UserModel.getList(domainId, uniqueUids);
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    },
   },
 };

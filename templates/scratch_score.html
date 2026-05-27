@@ -5,10 +5,43 @@
   <div class="medium-8 columns">
     <div class="section">
       <div class="section__header">
-        <h1 class="section__title">{{ _('Manual Score') }}</h1>
+        <h1 class="section__title">{{ _('Scratch Code Preview') }}</h1>
         <div class="section__tools">
+          {% if previewEditorUrl %}
+          <button class="rounded button" type="button" id="scratch-score-float">
+            {{ _('Floating Window') }}
+          </button>
+          {% endif %}
           <a class="rounded button" href="{{ previewUrl }}">{{ _('Preview') }}</a>
           <a class="rounded button" href="{{ downloadUrl }}">{{ _('Download') }}</a>
+        </div>
+      </div>
+      <div class="section__body">
+        {% if previewEditorUrl %}
+        <div id="scratch-score-shell" class="scratch-score-shell">
+          <div id="scratch-score-status" class="typo scratch-score-status">Loading submitted Scratch project...</div>
+          <iframe
+            id="scratch-score-frame"
+            class="scratch-score-frame"
+            title="Scratch code preview"
+            src="{{ previewEditorUrl }}"
+            allow="accelerometer; camera; microphone"
+            allowfullscreen
+            allowtransparency="true"
+          ></iframe>
+        </div>
+        {% else %}
+        <p class="typo">
+          Preview player is not configured. Use the download button to inspect this submission.
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Manual Score') }}</h1>
+        <div class="section__tools">
           <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
           <a class="rounded button" href="{{ recordUrl }}">{{ _('Record') }}</a>
         </div>
@@ -60,4 +93,170 @@
     </div>
   </div>
 </div>
+<style>
+.scratch-score-shell {
+  position: relative;
+}
+.scratch-score-status {
+  margin-bottom: 8px;
+}
+.scratch-score-frame {
+  width: 100%;
+  min-height: 500px;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  background: #f7f7f7;
+}
+.scratch-score-shell.is-floating {
+  position: fixed;
+  z-index: 1200;
+  right: 24px;
+  top: 96px;
+  width: min(900px, calc(100vw - 48px));
+  height: min(720px, calc(100vh - 120px));
+  min-width: 480px;
+  min-height: 360px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .22);
+  resize: both;
+  overflow: auto;
+}
+.scratch-score-shell.is-floating .scratch-score-status {
+  cursor: move;
+  user-select: none;
+}
+.scratch-score-shell.is-floating .scratch-score-frame {
+  height: calc(100% - 32px);
+  min-height: 300px;
+  aspect-ratio: auto;
+}
+@media (max-width: 768px) {
+  .scratch-score-frame {
+    min-height: 420px;
+  }
+  .scratch-score-shell.is-floating {
+    left: 12px !important;
+    right: 12px;
+    top: 76px !important;
+    width: calc(100vw - 24px) !important;
+    min-width: 0;
+  }
+}
+</style>
+{% if previewEditorUrl %}
+<script>
+(function() {
+  const PROJECT_URL = '{{ projectUrl }}';
+  const EDITOR_URL = '{{ previewEditorUrl }}';
+  const shell = document.getElementById('scratch-score-shell');
+  const frame = document.getElementById('scratch-score-frame');
+  const status = document.getElementById('scratch-score-status');
+  const floatButton = document.getElementById('scratch-score-float');
+  let loaded = false;
+  let floating = false;
+  let drag = null;
+
+  function setStatus(message, isError) {
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = isError ? '#c62828' : '#555';
+  }
+
+  function editorOrigin() {
+    try {
+      return new URL(EDITOR_URL, window.location.href).origin;
+    } catch (error) {
+      return window.location.origin;
+    }
+  }
+
+  function setFloating(enabled) {
+    if (!shell) return;
+    floating = enabled;
+    shell.classList.toggle('is-floating', enabled);
+    if (floatButton) floatButton.textContent = enabled ? '{{ _("Dock Preview") }}' : '{{ _("Floating Window") }}';
+    if (enabled) {
+      const rect = shell.getBoundingClientRect();
+      const width = Math.min(Math.max(rect.width || 720, 520), window.innerWidth - 32);
+      const height = Math.min(Math.max(rect.height || 540, 420), window.innerHeight - 96);
+      shell.style.width = width + 'px';
+      shell.style.height = height + 'px';
+      shell.style.left = Math.max(16, window.innerWidth - width - 24) + 'px';
+      shell.style.top = '96px';
+    } else {
+      shell.style.width = '';
+      shell.style.height = '';
+      shell.style.left = '';
+      shell.style.top = '';
+    }
+  }
+
+  if (floatButton) {
+    floatButton.addEventListener('click', function() {
+      setFloating(!floating);
+    });
+  }
+
+  if (status && shell) {
+    status.addEventListener('mousedown', function(event) {
+      if (!floating) return;
+      const rect = shell.getBoundingClientRect();
+      drag = {
+        x: event.clientX,
+        y: event.clientY,
+        left: rect.left,
+        top: rect.top,
+      };
+      event.preventDefault();
+    });
+    window.addEventListener('mousemove', function(event) {
+      if (!drag || !floating) return;
+      const nextLeft = Math.min(Math.max(8, drag.left + event.clientX - drag.x), window.innerWidth - 80);
+      const nextTop = Math.min(Math.max(8, drag.top + event.clientY - drag.y), window.innerHeight - 80);
+      shell.style.left = nextLeft + 'px';
+      shell.style.top = nextTop + 'px';
+    });
+    window.addEventListener('mouseup', function() {
+      drag = null;
+    });
+  }
+
+  async function loadProject() {
+    if (loaded || !frame || !frame.contentWindow) return;
+    try {
+      setStatus('Loading submitted project...');
+      const response = await fetch(PROJECT_URL, { credentials: 'include' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const content = await response.arrayBuffer();
+      frame.contentWindow.postMessage({
+        type: 'SCRATCH_OJ_LOAD_SB3',
+        requestId: 'score-preview-' + Date.now(),
+        filename: 'submission.sb3',
+        content,
+      }, editorOrigin());
+      loaded = true;
+    } catch (error) {
+      console.error('Scratch score preview failed:', error);
+      setStatus('Preview failed to load. Please use the download button to inspect this submission.', true);
+    }
+  }
+
+  window.addEventListener('message', function(event) {
+    if (event.origin !== editorOrigin()) return;
+    const data = event.data || {};
+    if (data.type === 'SCRATCH_OJ_LOAD_SUCCESS') {
+      setStatus('Preview loaded.');
+    } else if (data.type === 'SCRATCH_OJ_LOAD_ERROR') {
+      setStatus(data.message || 'Preview failed to load.', true);
+    }
+  });
+
+  frame.addEventListener('load', function() {
+    window.setTimeout(loadProject, 1200);
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

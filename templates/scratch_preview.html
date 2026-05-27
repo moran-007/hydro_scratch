@@ -19,6 +19,11 @@
           <a class="rounded button" href="{{ reportUrl }}">
             {{ _('Report') }}
           </a>
+          {% if previewEditorUrl %}
+          <button class="rounded button" type="button" id="scratch-preview-float">
+            {{ _('Floating Window') }}
+          </button>
+          {% endif %}
           {% if canScore %}
           <a class="rounded primary button" href="{{ scoreUrl }}">
             {{ _('Manual Score') }}
@@ -28,16 +33,18 @@
       </div>
       <div class="section__body">
         {% if previewEditorUrl %}
-        <div id="scratch-preview-status" class="typo">Loading Scratch preview...</div>
+        <div id="scratch-preview-shell" class="scratch-preview-shell">
+        <div id="scratch-preview-status" class="typo scratch-preview-status">Loading Scratch preview...</div>
         <iframe
           id="scratch-preview-frame"
+          class="scratch-preview-frame"
           title="Scratch preview"
           src="{{ previewEditorUrl }}"
           allow="accelerometer; camera; microphone"
           allowfullscreen
           allowtransparency="true"
-          style="width: 100%; aspect-ratio: 4 / 3; border: 0; background: #f7f7f7;"
         ></iframe>
+        </div>
         {% else %}
         <p>
           Preview player is not configured. Use the download button to open this
@@ -101,14 +108,70 @@
     {% endif %}
   </div>
 </div>
+<style>
+.scratch-preview-shell {
+  position: relative;
+}
+.scratch-preview-status {
+  margin-bottom: 8px;
+}
+.scratch-preview-frame {
+  width: 100%;
+  min-height: 560px;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  background: #f7f7f7;
+}
+.scratch-preview-shell.is-floating {
+  position: fixed;
+  z-index: 1200;
+  right: 24px;
+  top: 96px;
+  width: min(900px, calc(100vw - 48px));
+  height: min(720px, calc(100vh - 120px));
+  min-width: 480px;
+  min-height: 360px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #ddd;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .22);
+  resize: both;
+  overflow: auto;
+}
+.scratch-preview-shell.is-floating .scratch-preview-status {
+  cursor: move;
+  user-select: none;
+}
+.scratch-preview-shell.is-floating .scratch-preview-frame {
+  height: calc(100% - 32px);
+  min-height: 300px;
+  aspect-ratio: auto;
+}
+@media (max-width: 768px) {
+  .scratch-preview-frame {
+    min-height: 420px;
+  }
+  .scratch-preview-shell.is-floating {
+    left: 12px !important;
+    right: 12px;
+    top: 76px !important;
+    width: calc(100vw - 24px) !important;
+    min-width: 0;
+  }
+}
+</style>
 {% if previewEditorUrl %}
 <script>
 (function() {
   const PROJECT_URL = '{{ projectUrl }}';
   const EDITOR_URL = '{{ previewEditorUrl }}';
+  const shell = document.getElementById('scratch-preview-shell');
   const frame = document.getElementById('scratch-preview-frame');
   const status = document.getElementById('scratch-preview-status');
+  const floatButton = document.getElementById('scratch-preview-float');
   let loaded = false;
+  let floating = false;
+  let drag = null;
 
   function setStatus(message, isError) {
     if (!status) return;
@@ -122,6 +185,57 @@
     } catch (error) {
       return window.location.origin;
     }
+  }
+
+  function setFloating(enabled) {
+    if (!shell) return;
+    floating = enabled;
+    shell.classList.toggle('is-floating', enabled);
+    if (floatButton) floatButton.textContent = enabled ? '{{ _("Dock Preview") }}' : '{{ _("Floating Window") }}';
+    if (enabled) {
+      const rect = shell.getBoundingClientRect();
+      const width = Math.min(Math.max(rect.width || 720, 520), window.innerWidth - 32);
+      const height = Math.min(Math.max(rect.height || 540, 420), window.innerHeight - 96);
+      shell.style.width = width + 'px';
+      shell.style.height = height + 'px';
+      shell.style.left = Math.max(16, window.innerWidth - width - 24) + 'px';
+      shell.style.top = '96px';
+    } else {
+      shell.style.width = '';
+      shell.style.height = '';
+      shell.style.left = '';
+      shell.style.top = '';
+    }
+  }
+
+  if (floatButton) {
+    floatButton.addEventListener('click', function() {
+      setFloating(!floating);
+    });
+  }
+
+  if (status && shell) {
+    status.addEventListener('mousedown', function(event) {
+      if (!floating) return;
+      const rect = shell.getBoundingClientRect();
+      drag = {
+        x: event.clientX,
+        y: event.clientY,
+        left: rect.left,
+        top: rect.top,
+      };
+      event.preventDefault();
+    });
+    window.addEventListener('mousemove', function(event) {
+      if (!drag || !floating) return;
+      const nextLeft = Math.min(Math.max(8, drag.left + event.clientX - drag.x), window.innerWidth - 80);
+      const nextTop = Math.min(Math.max(8, drag.top + event.clientY - drag.y), window.innerHeight - 80);
+      shell.style.left = nextLeft + 'px';
+      shell.style.top = nextTop + 'px';
+    });
+    window.addEventListener('mouseup', function() {
+      drag = null;
+    });
   }
 
   async function loadProject() {

@@ -17,6 +17,7 @@
         {% else %}
         {{ _('Student view: your submitted Scratch projects and record links are listed here.') }}
         {% endif %}
+        {{ _('Showing') }} {{ submissions.length }} / {{ totalSubmissions }}.
       </p>
     </div>
     <div class="section__tools scratch-submissions__tools">
@@ -30,6 +31,28 @@
     </div>
   </div>
   <div class="section__body">
+    <form class="scratch-submissions__filters" method="get">
+      <label>
+        {{ _('Source') }}
+        <select name="origin">
+          <option value="all" {% if originFilter == 'all' %}selected{% endif %}>{{ _('All') }}</option>
+          <option value="normal" {% if originFilter == 'normal' %}selected{% endif %}>{{ _('Normal') }}</option>
+          <option value="contest" {% if originFilter == 'contest' %}selected{% endif %}>{{ _('Contest') }}</option>
+          <option value="homework" {% if originFilter == 'homework' %}selected{% endif %}>{{ _('Homework') }}</option>
+        </select>
+      </label>
+      <label>
+        {{ _('Review Status') }}
+        <select name="status">
+          <option value="all" {% if statusFilter == 'all' %}selected{% endif %}>{{ _('All') }}</option>
+          <option value="waiting" {% if statusFilter == 'waiting' %}selected{% endif %}>{{ _('Waiting') }}</option>
+          <option value="scored" {% if statusFilter == 'scored' %}selected{% endif %}>{{ _('Scored') }}</option>
+        </select>
+      </label>
+      <button class="rounded button" type="submit">{{ _('Filter') }}</button>
+      <a class="rounded button" href="{{ url('scratch_problem_submissions', pid=pdoc.docId) }}">{{ _('Reset') }}</a>
+    </form>
+
     {% if submissions.length %}
     <div class="scratch-submissions__table-wrap">
       <table class="data-table scratch-submissions-table">
@@ -40,8 +63,10 @@
             <th>{{ _('User') }}</th>
             {% endif %}
             <th>{{ _('Source') }}</th>
+            <th>{{ _('Method') }}</th>
             <th>{{ _('File') }}</th>
             <th>{{ _('Review Status') }}</th>
+            <th>{{ _('Judge Status') }}</th>
             <th>{{ _('Score') }}</th>
             <th>{{ _('Created At') }}</th>
             <th>{{ _('Actions') }}</th>
@@ -50,19 +75,30 @@
         <tbody>
           {% for item in submissions %}
           <tr>
-            <td><a href="{{ url('record_detail', rid=item.rid) }}">{{ item.rid }}</a></td>
+            <td><a href="{{ item.recordUrl }}">{{ item.rid }}</a></td>
             {% if canReadAll %}
-            <td>{{ item.userId }}</td>
+            <td>
+              <strong>{{ item.userName }}</strong>
+              <span class="scratch-submissions__muted">#{{ item.userId }}</span>
+            </td>
             {% endif %}
-            <td>{{ item.source }}</td>
+            <td>
+              {% if item.sourceUrl %}
+              <a href="{{ item.sourceUrl }}">{{ item.sourceLabel }}</a>
+              {% else %}
+              {{ item.sourceLabel }}
+              {% endif %}
+            </td>
+            <td>{{ item.submitMethod }}</td>
             <td class="scratch-submissions__file">{{ item.originalName }}</td>
             <td>
               {% if item.scored %}
-              <span class="scratch-submissions__status scratch-submissions__status--scored">已评分</span>
+              <span class="scratch-submissions__status scratch-submissions__status--scored">{{ _('Scored') }}</span>
               {% else %}
-              <span class="scratch-submissions__status scratch-submissions__status--waiting">待评分</span>
+              <span class="scratch-submissions__status scratch-submissions__status--waiting">{{ _('Waiting') }}</span>
               {% endif %}
             </td>
+            <td>{{ item.judgeStatusLabel }}</td>
             <td>
               {% if item.scored %}
               {{ item.score if item.score !== undefined else 0 }} / {{ item.maxScore }}
@@ -70,14 +106,14 @@
               - / {{ item.maxScore }}
               {% endif %}
             </td>
-            <td>{{ item.createdAt }}</td>
+            <td>{{ item.createdAtText }}</td>
             <td>
               <div class="scratch-submissions__actions">
-                <a class="rounded button small" href="{{ url('scratch_submission_preview', rid=item.rid) }}">{{ _('Preview') }}</a>
-                <a class="rounded button small" href="{{ url('scratch_submission_project', rid=item.rid) }}">{{ _('Download') }}</a>
-                <a class="rounded button small" href="{{ url('record_detail', rid=item.rid) }}">{{ _('Record') }}</a>
+                <a class="rounded button small" href="{{ item.previewUrl }}">{{ _('Preview') }}</a>
+                <a class="rounded button small" href="{{ item.downloadUrl }}">{{ _('Download') }}</a>
+                <a class="rounded button small" href="{{ item.recordUrl }}">{{ _('Record') }}</a>
                 {% if canScore %}
-                <a class="rounded primary button small" href="{{ url('scratch_submission_score', rid=item.rid) }}">{{ _('Score') }}</a>
+                <a class="rounded primary button small" href="{{ item.scoreUrl }}">{{ _('Score') }}</a>
                 {% endif %}
               </div>
             </td>
@@ -89,9 +125,9 @@
     {% else %}
     <div class="scratch-submissions__empty">
       {% if canManage %}
-      {{ _('No Scratch submissions were found here. You can also open Hydro Records to check native submissions.') }}
+      {{ _('No Scratch submissions matched the current filters. Open Hydro Records to check native submissions.') }}
       {% else %}
-      {{ _('You have not submitted a Scratch project for this problem yet. If you just submitted, open Hydro Records to verify the native record.') }}
+      {{ _('No Scratch submissions matched the current filters.') }}
       {% endif %}
     </div>
     {% endif %}
@@ -117,6 +153,27 @@
   gap: 8px;
 }
 
+.scratch-submissions__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.scratch-submissions__filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+  color: #666;
+  font-size: 13px;
+}
+
+.scratch-submissions__filters select {
+  min-height: 32px;
+}
+
 .scratch-submissions__tools {
   justify-content: flex-end;
 }
@@ -134,6 +191,11 @@
 
 .scratch-submissions__actions .button {
   margin: 0;
+}
+
+.scratch-submissions__muted {
+  color: #888;
+  font-size: 12px;
 }
 
 .scratch-submissions__status {
