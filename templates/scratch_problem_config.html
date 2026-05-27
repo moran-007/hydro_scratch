@@ -8,6 +8,8 @@
         <h1 class="section__title">{{ _('Scratch Problem') }}</h1>
         <div class="section__tools">
           <a class="rounded button" href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ _('Problem') }}</a>
+          <a class="rounded button" href="{{ editUrl }}">{{ _('Edit') }}</a>
+          <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
         </div>
       </div>
       <div class="section__body">
@@ -100,12 +102,25 @@
         </form>
       </div>
     </div>
+    {% if editorWorkspaceUrl %}
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Scratch Editor') }}</h1>
+      </div>
+      <div class="section__body typo">
+        <p>Students can open the embedded Scratch editor, save drafts, and submit the project from the problem page.</p>
+        <p><a class="rounded primary button" href="{{ editorWorkspaceUrl }}">{{ _('Open') }}</a></p>
+      </div>
+    </div>
+    {% endif %}
     <div class="section side">
       <div class="section__header">
         <h1 class="section__title">Routes</h1>
       </div>
       <div class="section__body typo">
         <ul>
+          <li><code>GET /scratch/problem/{{ pdoc.docId }}/editor</code></li>
+          <li><code>GET|POST /scratch/problem/{{ pdoc.docId }}/draft</code></li>
           <li><code>POST /scratch/submit/{{ pdoc.docId }}</code></li>
           <li><code>GET /scratch/problem/{{ pdoc.docId }}/submissions</code></li>
           <li><code>GET /scratch/submission/:rid/preview</code></li>
@@ -115,4 +130,3 @@
   </div>
 </div>
 {% endblock %}
-

@@ -1,0 +1,171 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+{{ set(UiContext, 'pdoc', pdoc) }}
+<div class="row">
+  <div class="medium-8 columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Edit Scratch Problem') }}</h1>
+        <div class="section__tools">
+          <a class="rounded button" href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ _('Problem') }}</a>
+          <a class="rounded button" href="{{ configUrl }}">{{ _('Settings') }}</a>
+          <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
+          {% if editorWorkspaceUrl %}
+          <a class="rounded primary button" href="{{ editorWorkspaceUrl }}">{{ _('Scratch Editor') }}</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="section__body">
+        <form method="post">
+          {{ form.form_text({
+              label:'Title',
+              name:'title',
+              value:pdoc.title,
+              required:true
+            }) }}
+          {{ form.form_text({
+              label:'Problem ID',
+              name:'pid',
+              value:pdoc.pid or pdoc.docId,
+              required:true
+            }) }}
+          {{ form.form_checkbox({
+              label:'Hidden',
+              name:'hidden',
+              value:pdoc.hidden
+            }) }}
+          {{ form.form_textarea({
+              label:'Statement',
+              name:'content',
+              value:pdoc.content,
+              rows:16,
+              required:true
+            }) }}
+
+          <h2>{{ _('Scratch Settings') }}</h2>
+          {{ form.form_checkbox({
+              label:'Enable Scratch',
+              name:'enabled',
+              value:config.enabled
+            }) }}
+          {{ form.form_select({
+              label:'Submit Mode',
+              name:'submitMode',
+              options:{upload:'Upload only', editor:'Editor only', both:'Upload and editor'},
+              value:config.submitMode
+            }) }}
+          {{ form.form_select({
+              label:'Judge Mode',
+              name:'judgeMode',
+              options:{manual:'Manual', static:'Static', dynamic:'Dynamic', hybrid:'Hybrid'},
+              value:config.judgeMode
+            }) }}
+          {{ form.form_text({
+              label:'Max Score',
+              name:'maxScore',
+              value:config.maxScore
+            }) }}
+          {{ form.form_textarea({
+              label:'Disabled Scratch Extensions',
+              name:'disabledScratchExtensions',
+              value:config.disabledScratchExtensions.join(', '),
+              rows:3,
+              help_text:'Comma-separated extension identifiers.'
+            }) }}
+          {{ form.form_checkbox({
+              label:'Allow Template Download',
+              name:'allowDownloadTemplate',
+              value:config.allowDownloadTemplate
+            }) }}
+
+          <details class="scratch-limits">
+            <summary>{{ _('Validation Limits') }}</summary>
+            {{ form.form_text({
+                label:'Max Project Size MB',
+                name:'maxProjectSizeMB',
+                value:config.maxProjectSizeMB
+              }) }}
+            {{ form.form_text({
+                label:'Max Unpacked Size MB',
+                name:'maxUnpackedSizeMB',
+                value:config.maxUnpackedSizeMB
+              }) }}
+            {{ form.form_text({
+                label:'Max Asset Size MB',
+                name:'maxAssetSizeMB',
+                value:config.maxAssetSizeMB
+              }) }}
+            {{ form.form_text({
+                label:'Max Asset Count',
+                name:'maxAssetCount',
+                value:config.maxAssetCount
+              }) }}
+            {{ form.form_text({
+                label:'Max project.json Size MB',
+                name:'maxProjectJsonSizeMB',
+                value:config.maxProjectJsonSizeMB
+              }) }}
+          </details>
+
+          <div class="row">
+            <div class="columns">
+              <input type="submit" class="rounded primary button" value="{{ _('Save') }}">
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="medium-4 columns">
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">Template .sb3</h1>
+      </div>
+      <div class="section__body typo">
+        {% if config.templatePath %}
+        <p>
+          Current template:
+          <a href="{{ templateDownloadUrl }}">{{ config.templateName or 'template.sb3' }}</a>
+        </p>
+        {% else %}
+        <p>No template has been uploaded.</p>
+        {% endif %}
+        <form action="{{ templateUploadUrl }}" method="post" enctype="multipart/form-data">
+          <p><input type="file" name="file" accept=".sb3" required></p>
+          <input type="submit" class="rounded button" value="{{ _('Upload') }}">
+        </form>
+      </div>
+    </div>
+
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Manual Score') }}</h1>
+      </div>
+      <div class="section__body typo">
+        <p>Student submissions appear in the Scratch submissions page. Open a submission preview to inspect the project and enter the manual score.</p>
+        <p><a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a></p>
+      </div>
+    </div>
+
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">Update package</h1>
+      </div>
+      <div class="section__body typo">
+        <p>This version keeps the dependency list unchanged, so the no-deps update package can overwrite an existing plugin installation.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.scratch-limits {
+  margin: 16px 0;
+}
+
+.scratch-limits summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+</style>
+{% endblock %}

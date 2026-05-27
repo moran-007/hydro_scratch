@@ -1,0 +1,64 @@
+/*!
+ * The buffer module from node.js, for the browser.
+ *
+ * @author   Feross Aboukhadijeh <https://feross.org>
+ * @license  MIT
+ */
+
+/*! ../dispatch/worker-dispatch */
+
+/*! ../extension-support/argument-type */
+
+/*! ../extension-support/block-type */
+
+/*! ../extension-support/target-type */
+
+/*! ../formatNumberAddZeros.js */
+
+/*! ../formatTemplate.js */
+
+/*! ../prettyLogStyles.js */
+
+/*! ../util/log */
+
+/*! ./BaseLogger.js */
+
+/*! ./formatTemplate.js */
+
+/*! ./interfaces.js */
+
+/*! ./internal/environment.js */
+
+/*! ./internal/errorUtils.js */
+
+/*! ./internal/jsonStringifyRecursive.js */
+
+/*! ./internal/metaFormatting.js */
+
+/*! ./internal/stackTrace.js */
+
+/*! ./internal/util.inspect.polyfill.js */
+
+/*! ./jsonStringifyRecursive.js */
+
+/*! ./prettyLogStyles.js */
+
+/*! ./shared-dispatch */
+
+/*! ./stackTrace.js */
+
+/*! ./urlToObj.js */
+
+/*! base64-js */
+
+/*! buffer */
+
+/*! ieee754 */
+
+/*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+/*! tslog */
+
+/*!***************************************************!*\
+  !*** ./src/extension-support/extension-worker.js ***!
+  \***************************************************/

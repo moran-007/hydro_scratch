@@ -13,13 +13,21 @@
           <a class="rounded button" href="{{ reportUrl }}">
             {{ _('Report') }}
           </a>
+          {% if canScore %}
+          <a class="rounded primary button" href="{{ scoreUrl }}">
+            {{ _('Manual Score') }}
+          </a>
+          {% endif %}
         </div>
       </div>
       <div class="section__body">
-        {% if playerUrl %}
+        {% if previewEditorUrl %}
+        <div id="scratch-preview-status" class="typo">Loading Scratch preview...</div>
         <iframe
+          id="scratch-preview-frame"
           title="Scratch preview"
-          src="{{ playerUrl }}"
+          src="{{ previewEditorUrl }}"
+          allow="accelerometer; camera; microphone"
           allowfullscreen
           allowtransparency="true"
           style="width: 100%; aspect-ratio: 4 / 3; border: 0; background: #f7f7f7;"
@@ -59,6 +67,9 @@
     <div class="section side">
       <div class="section__header">
         <h1 class="section__title">{{ _('Manual Score') }}</h1>
+        <div class="section__tools">
+          <a class="rounded button" href="{{ scoreUrl }}">{{ _('Open Score Page') }}</a>
+        </div>
       </div>
       <div class="section__body">
         <form action="{{ scoreUrl }}" method="post">
@@ -76,10 +87,71 @@
             }) }}
           <input type="submit" class="rounded primary button expanded" value="{{ _('Save') }}">
         </form>
+        <p class="typo">
+          <a href="{{ submissionsUrl }}">{{ _('Back to Scratch submissions') }}</a>
+        </p>
       </div>
     </div>
     {% endif %}
   </div>
 </div>
-{% endblock %}
+{% if previewEditorUrl %}
+<script>
+(function() {
+  const PROJECT_URL = '{{ projectUrl }}';
+  const EDITOR_URL = '{{ previewEditorUrl }}';
+  const frame = document.getElementById('scratch-preview-frame');
+  const status = document.getElementById('scratch-preview-status');
+  let loaded = false;
 
+  function setStatus(message, isError) {
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = isError ? '#c62828' : '#555';
+  }
+
+  function editorOrigin() {
+    try {
+      return new URL(EDITOR_URL, window.location.href).origin;
+    } catch (error) {
+      return window.location.origin;
+    }
+  }
+
+  async function loadProject() {
+    if (loaded || !frame || !frame.contentWindow) return;
+    try {
+      setStatus('Loading submitted project...');
+      const response = await fetch(PROJECT_URL, { credentials: 'include' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const content = await response.arrayBuffer();
+      frame.contentWindow.postMessage({
+        type: 'SCRATCH_OJ_LOAD_SB3',
+        requestId: 'preview-' + Date.now(),
+        filename: 'submission.sb3',
+        content,
+      }, editorOrigin());
+      loaded = true;
+    } catch (error) {
+      console.error('Scratch preview failed:', error);
+      setStatus('Preview failed to load. Please use the download button to inspect this submission.', true);
+    }
+  }
+
+  window.addEventListener('message', function(event) {
+    if (event.origin !== editorOrigin()) return;
+    const data = event.data || {};
+    if (data.type === 'SCRATCH_OJ_LOAD_SUCCESS') {
+      setStatus('Preview loaded.');
+    } else if (data.type === 'SCRATCH_OJ_LOAD_ERROR') {
+      setStatus(data.message || 'Preview failed to load.', true);
+    }
+  });
+
+  frame.addEventListener('load', function() {
+    window.setTimeout(loadProject, 1200);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,101 @@
+.scratch-oj-table td {
+  vertical-align: top;
+}
+
+.scratch-oj-muted {
+  color: #777;
+  font-size: 0.9rem;
+}
+
+.scratch-oj-tag {
+  display: inline-block;
+  margin: 0 0.25rem 0.25rem 0;
+  padding: 0.12rem 0.45rem;
+  border-radius: 3px;
+  background: #edf2ff;
+  color: #3850a0;
+  font-size: 0.8rem;
+}
+
+.scratch-oj-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.scratch-oj-list li {
+  margin-bottom: 0.45rem;
+}
+
+.scratch-oj-inline-link {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.scratch-oj-empty {
+  margin: 1rem 0;
+  color: #777;
+}
+
+.scratch-oj-textarea {
+  min-height: 360px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.scratch-oj-editor-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 1rem;
+  min-height: calc(100vh - 130px);
+}
+
+.scratch-oj-panel {
+  min-width: 0;
+}
+
+.scratch-oj-editor-frame-wrap {
+  min-width: 0;
+  height: calc(100vh - 130px);
+  border: 1px solid #ddd;
+  background: #fff;
+}
+
+.scratch-oj-editor-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.scratch-oj-statement {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+  padding: 0.75rem;
+  background: #f7f7f7;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.scratch-oj-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.scratch-oj-status {
+  min-height: 1.4rem;
+  color: #555;
+}
+
+@media (max-width: 960px) {
+  .scratch-oj-editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .scratch-oj-editor-frame-wrap {
+    height: 70vh;
+  }
+}

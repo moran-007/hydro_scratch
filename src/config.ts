@@ -17,7 +17,10 @@ export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
   maxAssetCount: 300,
   maxProjectJsonSizeMB: 10,
   maxScore: 100,
-  previewPlayerUrl: 'https://turbowarp.org/embed?autoplay&addons=pause',
+  previewPlayerUrl: '',
+  scratchEditorUrl: '/scratch-editor/index.html',
+  scratchEditorOrigin: '',
+  scratchAssetHost: '/scratch-assets',
 };
 
 export function defaultProblemConfig(domainId: string, problemId: number, pluginConfig: PluginConfig): ScratchProblemConfig {
@@ -80,4 +83,3 @@ function positiveInteger(value: unknown, fallback: number) {
   const next = Number(value);
   return Number.isInteger(next) && next > 0 ? next : fallback;
 }
-

@@ -4,9 +4,11 @@
   <div class="workspace-header">
     <div class="workspace-info">
       <h2>{{ pdoc.title }}</h2>
-      <span class="badge" id="auto-save-status"></span>
+      <span class="badge" id="auto-save-status">Ready</span>
     </div>
     <div class="workspace-actions">
+      <a class="rounded button" href="{{ previewUrl }}">{{ _('Problem') }}</a>
+      <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
       {% if config.allowDownloadTemplate and config.templatePath %}
       <a class="rounded button" href="{{ templateUrl }}">
         <span class="icon icon-download"></span>
@@ -23,28 +25,30 @@
       </button>
     </div>
   </div>
-  
+
   <div class="workspace-main">
     <div class="problem-panel">
       <div class="panel-header">
         <h3>{{ _('Problem') }}</h3>
       </div>
-      <div class="panel-content" id="problem-content">
-        {{ pdoc.content|safe }}
+      <div class="panel-content" id="problem-content" data-problem-url="{{ problemUrl }}">
+        <div class="problem-loading">{{ _('Loading problem statement...') }}</div>
       </div>
     </div>
-    
+
     <div class="editor-panel">
-      <div class="panel-header">
+      <div class="panel-header editor-drag-handle">
         <h3>{{ _('Scratch Editor') }}</h3>
-        <div class="editor-controls">
+        <div class="editor-tools">
           <label class="checkbox-label">
             <input type="checkbox" id="auto-save-toggle" checked>
             {{ _('Auto-save') }}
           </label>
+          <button class="rounded button" id="float-toggle" type="button">{{ _('Floating Window') }}</button>
         </div>
       </div>
       <div class="panel-content">
+        {% if editorUrl %}
         <div id="scratch-container">
           <iframe
             id="scratch-editor-frame"
@@ -54,6 +58,12 @@
             allowtransparency="true"
           ></iframe>
         </div>
+        {% else %}
+        <div class="editor-placeholder">
+          <p>The Scratch editor URL is not configured.</p>
+          <p>Please set <code>scratchEditorUrl</code> in the plugin settings and restart Hydro.</p>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -64,37 +74,44 @@
   display: flex;
   flex-direction: column;
   height: calc(100vh - 120px);
-  background: var(--bg-color, #f5f5f5);
+  min-height: 640px;
+  background: #f5f7fb;
 }
 
 .workspace-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 12px 20px;
-  background: white;
-  border-bottom: 1px solid var(--border-color, #ddd);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background: #fff;
+  border-bottom: 1px solid #d9dee8;
 }
 
-.workspace-info {
+.workspace-info,
+.workspace-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .workspace-info h2 {
   margin: 0;
+  overflow: hidden;
+  color: #222;
   font-size: 18px;
-  color: var(--text-color, #333);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge {
-  padding: 4px 12px;
+  flex: 0 0 auto;
+  padding: 4px 10px;
   border-radius: 12px;
-  font-size: 12px;
   background: #e8f5e9;
   color: #2e7d32;
+  font-size: 12px;
 }
 
 .badge.saving {
@@ -102,88 +119,86 @@
   color: #ef6c00;
 }
 
-.badge.unsaved {
+.badge.error {
   background: #ffebee;
   color: #c62828;
-}
-
-.workspace-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.workspace-actions .button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .workspace-main {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
 .problem-panel {
-  flex: 0 0 35%;
   display: flex;
+  flex: 0 0 34%;
   flex-direction: column;
-  background: white;
-  border-right: 1px solid var(--border-color, #ddd);
-  overflow: hidden;
+  min-width: 300px;
+  background: #fff;
+  border-right: 1px solid #d9dee8;
 }
 
 .editor-panel {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px;
-  background: var(--bg-secondary, #fafafa);
-  border-bottom: 1px solid var(--border-color, #ddd);
+  min-height: 42px;
+  padding: 9px 16px;
+  background: #fbfcff;
+  border-bottom: 1px solid #d9dee8;
 }
 
 .panel-header h3 {
   margin: 0;
+  color: #555;
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-secondary, #666);
-}
-
-.editor-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
   gap: 6px;
+  color: #555;
   font-size: 13px;
-  color: var(--text-secondary, #666);
   cursor: pointer;
 }
 
-.checkbox-label input {
-  margin: 0;
+.editor-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .panel-content {
   flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
 #problem-content {
   padding: 20px;
-  line-height: 1.6;
   font-size: 14px;
+  line-height: 1.65;
+}
+
+.problem-loading,
+.problem-error {
+  padding: 20px;
+  color: #666;
+}
+
+.problem-error {
+  color: #c62828;
 }
 
 #problem-content img {
@@ -191,251 +206,335 @@
   height: auto;
 }
 
-#scratch-container {
-  width: 100%;
-  height: 100%;
-  background: #ffffff;
-}
-
+#scratch-container,
 #scratch-editor-frame {
   width: 100%;
   height: 100%;
-  border: none;
-  background: #ffffff;
+}
+
+#scratch-editor-frame {
+  display: block;
+  border: 0;
+  background: #fff;
+}
+
+.editor-panel.is-floating {
+  position: fixed;
+  top: 72px;
+  left: 8vw;
+  z-index: 2000;
+  width: 84vw;
+  height: 78vh;
+  min-width: 520px;
+  min-height: 360px;
+  overflow: hidden;
+  resize: both;
+  background: #fff;
+  border: 1px solid #b9c4d6;
+  border-radius: 8px;
+  box-shadow: 0 18px 48px rgba(28, 38, 56, .24);
+}
+
+.editor-panel.is-floating .editor-drag-handle {
+  cursor: move;
+  user-select: none;
+}
+
+.editor-panel.is-dragging iframe {
+  pointer-events: none;
+}
+
+.editor-placeholder {
+  padding: 24px;
+  color: #666;
+  line-height: 1.7;
 }
 
 @media (max-width: 1024px) {
+  .scratch-workspace {
+    height: auto;
+  }
+
+  .workspace-header,
   .workspace-main {
     flex-direction: column;
+    align-items: stretch;
   }
-  
+
+  .workspace-actions {
+    flex-wrap: wrap;
+  }
+
   .problem-panel {
-    flex: 0 0 40%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color, #ddd);
+    flex: 0 0 auto;
+    min-width: 0;
+    max-height: 40vh;
+    border-right: 0;
+    border-bottom: 1px solid #d9dee8;
   }
-  
+
   .editor-panel {
-    flex: 1;
+    min-height: 70vh;
   }
 }
 </style>
 
+{% if editorUrl %}
 <script>
 (function() {
-  const PROBLEM_ID = {{ pdoc.docId }};
-  const DOMAIN_ID = '{{ pdoc.domainId }}';
-  const USER_ID = {{ user._id }};
-  const TEMPLATE_URL = '{{ config.templatePath or "" }}';
-  const SUBMIT_URL = '{{ submitUrl }}';
-  const SAVE_DRAFT_URL = '{{ saveDraftUrl }}';
+  const EDITOR_ORIGIN = '{{ editorOrigin }}';
+  const TEMPLATE_PROJECT_URL = '{{ templateProjectUrl }}';
+  const DRAFT_PROJECT_URL = '{{ draftProjectUrl }}';
   const LOAD_DRAFT_URL = '{{ loadDraftUrl }}';
-  
-  let autoSaveEnabled = true;
-  let autoSaveTimer = null;
-  let hasUnsavedChanges = false;
-  let currentProjectId = null;
-  
-  const statusEl = document.getElementById('auto-save-status');
-  const autoSaveToggle = document.getElementById('auto-save-toggle');
+  const SAVE_DRAFT_URL = '{{ saveDraftUrl }}';
+  const SUBMIT_URL = '{{ submitUrl }}';
+  const PROBLEM_DESCRIPTION_URL = '{{ problemDescriptionUrl }}';
+  const TID = '{{ tid }}';
+
+  const frame = document.getElementById('scratch-editor-frame');
+  const status = document.getElementById('auto-save-status');
   const saveBtn = document.getElementById('save-btn');
   const submitBtn = document.getElementById('submit-btn');
-  const editorFrame = document.getElementById('scratch-editor-frame');
-  
-  function updateStatus(message, type = 'saved') {
-    if (!statusEl) return;
-    statusEl.textContent = message;
-    statusEl.className = 'badge ' + type;
+  const autoSaveToggle = document.getElementById('auto-save-toggle');
+  const problemContent = document.getElementById('problem-content');
+  const editorPanel = document.querySelector('.editor-panel');
+  const dragHandle = document.querySelector('.editor-drag-handle');
+  const floatToggle = document.getElementById('float-toggle');
+  const pendingExports = new Map();
+  let initialProjectLoaded = false;
+  let floating = false;
+  let dragging = null;
+
+  function targetOrigin() {
+    return EDITOR_ORIGIN || window.location.origin;
   }
-  
-  function getEditorWindow() {
-    return editorFrame?.contentWindow;
+
+  function setStatus(message, state) {
+    if (!status) return;
+    status.textContent = message;
+    status.classList.toggle('saving', state === 'saving');
+    status.classList.toggle('error', state === 'error');
   }
-  
-  function loadProject(projectData) {
-    const editorWin = getEditorWindow();
-    if (editorWin && editorWin.vm) {
+
+  function contentToBlob(content) {
+    if (content instanceof Blob) return content;
+    if (content instanceof ArrayBuffer) return new Blob([content], { type: 'application/x.scratch.sb3' });
+    if (ArrayBuffer.isView(content)) {
+      const buffer = content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+      return new Blob([buffer], { type: 'application/x.scratch.sb3' });
+    }
+    return new Blob([content], { type: 'application/x.scratch.sb3' });
+  }
+
+  function postToEditor(message) {
+    if (!frame || !frame.contentWindow) throw new Error('Scratch editor is not ready.');
+    frame.contentWindow.postMessage(message, targetOrigin());
+  }
+
+  function requestProjectExport(operation) {
+    return new Promise(function(resolve, reject) {
+      const requestId = operation + '-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+      const timer = window.setTimeout(function() {
+        pendingExports.delete(requestId);
+        reject(new Error('Scratch editor did not return a project file in time.'));
+      }, 30000);
+      pendingExports.set(requestId, { resolve, reject, timer });
+      postToEditor({
+        type: 'SCRATCH_OJ_EXPORT_SB3',
+        requestId: requestId,
+        operation: operation
+      });
+    });
+  }
+
+  async function fetchArrayBuffer(url) {
+    const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    return response.arrayBuffer();
+  }
+
+  async function loadProblemStatement() {
+    if (!problemContent || !PROBLEM_DESCRIPTION_URL) return;
+    try {
+      const response = await fetch(PROBLEM_DESCRIPTION_URL, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json, text/html;q=0.9' }
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      const text = await response.text();
+      let html = text;
       try {
-        editorWin.vm.loadProject(projectData)
-          .then(() => {
-            currentProjectId = projectData;
-            hasUnsavedChanges = false;
-            updateStatus('Project loaded', 'saved');
-          })
-          .catch(err => {
-            console.error('Failed to load project:', err);
-            updateStatus('Failed to load', 'unsaved');
-          });
-      } catch (err) {
-        console.error('Error loading project:', err);
+        const payload = JSON.parse(text);
+        html = payload.fragments && payload.fragments[0] && payload.fragments[0].html
+          ? payload.fragments[0].html
+          : text;
+      } catch (error) {
+        html = text;
       }
+      problemContent.innerHTML = html;
+    } catch (error) {
+      console.error('Problem statement load failed:', error);
+      problemContent.innerHTML = '<div class="problem-error">题面加载失败，请点击上方 Problem 查看 Hydro 原题面。</div>';
     }
   }
-  
+
+  async function loadProject(url, filename) {
+    const content = await fetchArrayBuffer(url);
+    postToEditor({
+      type: 'SCRATCH_OJ_LOAD_SB3',
+      requestId: 'load-' + Date.now(),
+      filename: filename || 'project.sb3',
+      content: content
+    });
+  }
+
+  async function loadInitialProject() {
+    if (initialProjectLoaded) return;
+    initialProjectLoaded = true;
+    try {
+      setStatus('Checking draft...', 'saving');
+      const response = await fetch(LOAD_DRAFT_URL, { credentials: 'same-origin', cache: 'no-store' });
+      const payload = response.ok ? await response.json() : { draft: null };
+      if (payload.draft && DRAFT_PROJECT_URL) {
+        await loadProject(DRAFT_PROJECT_URL, payload.draft.originalName || 'draft.sb3');
+        setStatus('Draft loaded.', '');
+        return;
+      }
+      if (TEMPLATE_PROJECT_URL) {
+        await loadProject(TEMPLATE_PROJECT_URL, 'template.sb3');
+        setStatus('Template loaded.', '');
+        return;
+      }
+      setStatus('Ready.', '');
+    } catch (error) {
+      console.error('Scratch initial load failed:', error);
+      setStatus('Initial project failed to load. You can still edit a new project.', 'error');
+    }
+  }
+
+  async function uploadProject(url, formField, source) {
+    const project = await requestProjectExport(source || 'save');
+    const blob = contentToBlob(project.content);
+    const form = new FormData();
+    form.append(formField, blob, project.filename || 'project.sb3');
+    if (source === 'submit') form.append('source', 'editor');
+    if (source === 'submit' && TID) form.append('tid', TID);
+    const response = await fetch(url, {
+      method: 'POST',
+      body: form,
+      credentials: 'same-origin'
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    return response.json();
+  }
+
   async function saveDraft() {
-    const editorWin = getEditorWindow();
-    if (!editorWin || !editorWin.vm) {
-      alert('Editor not ready. Please wait...');
-      return;
-    }
-    
     try {
-      updateStatus('Saving...', 'saving');
-      saveBtn.disabled = true;
-      
-      const projectJson = await editorWin.vm.toJSON();
-      const sb3Buffer = await editorWin.vm.saveProjectSb3();
-      
-      const formData = new FormData();
-      formData.append('project', new Blob([sb3Buffer], { type: 'application/x.scratch.project' }), 'project.sb3');
-      
-      const response = await fetch(SAVE_DRAFT_URL.replace(':pid', PROBLEM_ID), {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      
-      if (!response.ok) throw new Error('Save failed');
-      
-      const result = await response.json();
-      currentProjectId = result.draftId;
-      hasUnsavedChanges = false;
-      updateStatus('Draft saved', 'saved');
-    } catch (err) {
-      console.error('Save error:', err);
-      updateStatus('Save failed', 'unsaved');
-      alert('Failed to save draft: ' + err.message);
-    } finally {
-      saveBtn.disabled = false;
+      setStatus('Saving draft...', 'saving');
+      await uploadProject(SAVE_DRAFT_URL, 'project', 'save');
+      setStatus('Draft saved.', '');
+    } catch (error) {
+      console.error('Scratch draft save failed:', error);
+      setStatus('Draft save failed.', 'error');
     }
   }
-  
+
   async function submitProject() {
-    const editorWin = getEditorWindow();
-    if (!editorWin || !editorWin.vm) {
-      alert('Editor not ready. Please wait...');
-      return;
-    }
-    
-    if (hasUnsavedChanges) {
-      const confirmSave = confirm('You have unsaved changes. Do you want to save before submitting?');
-      if (confirmSave) {
-        await saveDraft();
-      }
-    }
-    
     try {
-      submitBtn.disabled = true;
-      updateStatus('Submitting...', 'saving');
-      
-      const sb3Buffer = await editorWin.vm.saveProjectSb3();
-      
-      const formData = new FormData();
-      formData.append('file', new Blob([sb3Buffer], { type: 'application/x.scratch.project' }), 'submission.sb3');
-      
-      const response = await fetch(SUBMIT_URL.replace(':pid', PROBLEM_ID), {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      });
-      
-      if (!response.ok) throw new Error('Submit failed');
-      
-      const result = await response.json();
-      updateStatus('Submitted!', 'saved');
-      alert('Submission successful! Record ID: ' + result.rid);
-      window.location.href = result.previewUrl || '/';
-    } catch (err) {
-      console.error('Submit error:', err);
-      updateStatus('Submit failed', 'unsaved');
-      alert('Failed to submit: ' + err.message);
-    } finally {
-      submitBtn.disabled = false;
+      setStatus('Submitting...', 'saving');
+      const result = await uploadProject(SUBMIT_URL, 'file', 'submit');
+      setStatus('Submitted.', '');
+      if (result && result.previewUrl) window.location.href = result.previewUrl;
+    } catch (error) {
+      console.error('Scratch submit failed:', error);
+      setStatus('Submit failed.', 'error');
     }
   }
-  
-  async function loadDraft() {
-    try {
-      const response = await fetch(LOAD_DRAFT_URL.replace(':pid', PROBLEM_ID), {
-        method: 'GET',
-        credentials: 'include'
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.draft) {
-          const editorWin = getEditorWindow();
-          if (editorWin && editorWin.vm) {
-            const buffer = await result.draft.arrayBuffer();
-            loadProject(buffer);
-            return;
-          }
-        }
-      }
-      
-      if (TEMPLATE_URL) {
-        const templateResponse = await fetch(TEMPLATE_URL, { credentials: 'include' });
-        if (templateResponse.ok) {
-          const buffer = await templateResponse.arrayBuffer();
-          loadProject(buffer);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load draft/template:', err);
-    }
-  }
-  
-  function setupAutoSave() {
-    if (!autoSaveEnabled) return;
-    
-    autoSaveTimer = setInterval(async () => {
-      if (hasUnsavedChanges && currentProjectId) {
-        await saveDraft();
-      }
-    }, 30000);
-  }
-  
-  function handleProjectChange() {
-    hasUnsavedChanges = true;
-    if (autoSaveEnabled) {
-      updateStatus('Unsaved changes', 'unsaved');
-    }
-  }
-  
-  editorFrame?.addEventListener('load', () => {
-    const editorWin = getEditorWindow();
-    if (editorWin?.vm) {
-      editorWin.vm.on('projectChanged', handleProjectChange);
-      loadDraft();
-      updateStatus('Ready', 'saved');
+
+  window.addEventListener('message', function(event) {
+    if (event.origin !== targetOrigin()) return;
+    const data = event.data || {};
+    if (data.type === 'SCRATCH_OJ_EXPORT_SB3_RESULT') {
+      const pending = pendingExports.get(data.requestId);
+      if (!pending) return;
+      window.clearTimeout(pending.timer);
+      pendingExports.delete(data.requestId);
+      pending.resolve(data);
+    } else if (data.type === 'SCRATCH_OJ_EXPORT_SB3_ERROR') {
+      const pending = pendingExports.get(data.requestId);
+      if (!pending) return;
+      window.clearTimeout(pending.timer);
+      pendingExports.delete(data.requestId);
+      pending.reject(new Error(data.message || 'Scratch export failed.'));
+    } else if (data.type === 'SCRATCH_OJ_SUBMIT_SB3') {
+      submitProject();
+    } else if (data.type === 'SCRATCH_OJ_LOAD_SUCCESS') {
+      setStatus('Project loaded.', '');
+    } else if (data.type === 'SCRATCH_OJ_LOAD_ERROR') {
+      setStatus(data.message || 'Project load failed.', 'error');
     }
   });
-  
-  autoSaveToggle?.addEventListener('change', (e) => {
-    autoSaveEnabled = e.target.checked;
-    if (autoSaveEnabled) {
-      setupAutoSave();
-      updateStatus('Auto-save enabled', 'saved');
-    } else {
-      if (autoSaveTimer) {
-        clearInterval(autoSaveTimer);
-        autoSaveTimer = null;
-      }
-      updateStatus('Auto-save disabled', 'saved');
+
+  saveBtn && saveBtn.addEventListener('click', saveDraft);
+  submitBtn && submitBtn.addEventListener('click', submitProject);
+  loadProblemStatement();
+
+  function setFloating(next) {
+    if (!editorPanel) return;
+    floating = next;
+    editorPanel.classList.toggle('is-floating', floating);
+    if (!floating) {
+      editorPanel.style.left = '';
+      editorPanel.style.top = '';
+      editorPanel.style.width = '';
+      editorPanel.style.height = '';
+    } else if (!editorPanel.style.left) {
+      editorPanel.style.left = Math.max(24, Math.round(window.innerWidth * 0.08)) + 'px';
+      editorPanel.style.top = '72px';
+      editorPanel.style.width = Math.max(520, Math.round(window.innerWidth * 0.84)) + 'px';
+      editorPanel.style.height = Math.max(360, Math.round(window.innerHeight * 0.78)) + 'px';
     }
+    if (floatToggle) floatToggle.textContent = floating ? '{{ _("Dock Editor") }}' : '{{ _("Floating Window") }}';
+  }
+
+  floatToggle && floatToggle.addEventListener('click', function() {
+    setFloating(!floating);
   });
-  
-  saveBtn?.addEventListener('click', saveDraft);
-  submitBtn?.addEventListener('click', submitProject);
-  
-  window.addEventListener('beforeunload', (e) => {
-    if (hasUnsavedChanges) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
+
+  dragHandle && dragHandle.addEventListener('mousedown', function(event) {
+    if (!floating || !editorPanel) return;
+    if (event.target.closest('button, a, input, label')) return;
+    const rect = editorPanel.getBoundingClientRect();
+    dragging = {
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top
+    };
+    editorPanel.classList.add('is-dragging');
+    event.preventDefault();
   });
-  
-  setupAutoSave();
+
+  window.addEventListener('mousemove', function(event) {
+    if (!dragging || !editorPanel) return;
+    const maxLeft = Math.max(0, window.innerWidth - 120);
+    const maxTop = Math.max(0, window.innerHeight - 80);
+    editorPanel.style.left = Math.min(maxLeft, Math.max(0, event.clientX - dragging.offsetX)) + 'px';
+    editorPanel.style.top = Math.min(maxTop, Math.max(0, event.clientY - dragging.offsetY)) + 'px';
+  });
+
+  window.addEventListener('mouseup', function() {
+    if (editorPanel) editorPanel.classList.remove('is-dragging');
+    dragging = null;
+  });
+
+  frame && frame.addEventListener('load', function() {
+    window.setTimeout(loadInitialProject, 1000);
+  });
+
+  window.setInterval(function() {
+    if (autoSaveToggle && autoSaveToggle.checked) saveDraft();
+  }, 120000);
 })();
 </script>
+{% endif %}
 {% endblock %}

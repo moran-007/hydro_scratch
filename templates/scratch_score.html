@@ -1,0 +1,63 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+{{ set(UiContext, 'pdoc', pdoc) }}
+<div class="row">
+  <div class="medium-8 columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Manual Score') }}</h1>
+        <div class="section__tools">
+          <a class="rounded button" href="{{ previewUrl }}">{{ _('Preview') }}</a>
+          <a class="rounded button" href="{{ downloadUrl }}">{{ _('Download') }}</a>
+          <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
+          <a class="rounded button" href="{{ recordUrl }}">{{ _('Record') }}</a>
+        </div>
+      </div>
+      <div class="section__body">
+        <form action="{{ scoreUrl }}" method="post">
+          {{ form.form_text({
+              label:'Score',
+              name:'score',
+              value:submission.score if submission.score !== undefined else rdoc.score,
+              required:true,
+              help_text:'Enter a value from 0 to the maximum score.'
+            }) }}
+          {{ form.form_textarea({
+              label:'Comment',
+              name:'comment',
+              value:submission.manualComment or '',
+              rows:6
+            }) }}
+          <input type="submit" class="rounded primary button" value="{{ _('Save') }}">
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="medium-4 columns">
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Submission') }}</h1>
+      </div>
+      <div class="section__body typo">
+        <dl class="large horizontal">
+          <dt>{{ _('Problem') }}</dt>
+          <dd><a href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ pdoc.title }}</a></dd>
+          <dt>{{ _('Record') }}</dt>
+          <dd><a href="{{ recordUrl }}">{{ rdoc._id }}</a></dd>
+          <dt>{{ _('User') }}</dt>
+          <dd>{{ submission.userId }}</dd>
+          <dt>{{ _('File') }}</dt>
+          <dd>{{ submission.originalName }}</dd>
+          <dt>{{ _('Score') }}</dt>
+          <dd>{{ rdoc.score }} / {{ submission.maxScore }}</dd>
+        </dl>
+        <p>
+          {{ _('Direct scoring URL') }}:
+          <br>
+          <code>{{ scoreUrl }}</code>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

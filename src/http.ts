@@ -1,4 +1,3 @@
-import { extname } from 'node:path';
 import {
   ContestModel,
   DomainModel,
@@ -18,12 +17,21 @@ import {
   param,
   post,
 } from 'hydrooj';
+import { ScratchAssetProxyHandler, buildScratchEditorUrl } from './assets';
+import {
+  ScratchDraftLoadHandler,
+  ScratchDraftProjectHandler,
+  ScratchDraftSaveHandler,
+  ScratchEditorHandler,
+} from './editor';
 import { ScratchValidationError } from './errors';
 import { ScratchModel } from './model';
 import { limitsFromMB, validateScratchProject } from './sb3';
 import type { PluginConfig, ScratchProblemConfig, ScratchSubmitSource, ScratchSubmissionMeta } from './types';
 
 const SCRATCH_LANG = 'scratch3';
+const STATUS_IGNORED = STATUS?.STATUS_IGNORED ?? 30;
+const SCRATCH_ACTIONS_MARKER = '<!-- hydro-scratch-actions -->';
 
 function parseBoolean(value: unknown, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -53,13 +61,6 @@ function filenameFor(originalName: string | undefined, fallback: string) {
   return name.toLowerCase().endsWith('.sb3') ? name : `${name}.sb3`;
 }
 
-function buildPreviewUrl(baseUrl: string, projectUrl: string) {
-  if (!baseUrl) return '';
-  const url = new URL(baseUrl);
-  url.searchParams.set('project_url', projectUrl);
-  return url.toString();
-}
-
 async function validateUploadedScratchProject(filePath: string, originalName: string, config: ScratchProblemConfig) {
   try {
     return await validateScratchProject(filePath, originalName, limitsFromMB(config));
@@ -67,6 +68,88 @@ async function validateUploadedScratchProject(filePath: string, originalName: st
     if (error instanceof ScratchValidationError) throw new ValidationError(`${error.code}: ${error.message}`);
     throw error;
   }
+}
+
+function hasQueryFlag(handler: Handler, name: string) {
+  const value = handler.request.query?.[name] ?? handler.args?.[name];
+  return value !== undefined && value !== null && value !== '' && value !== '0' && value !== false;
+}
+
+function appendQuery(url: string, query: Record<string, string | number | boolean>) {
+  const search = new URLSearchParams();
+  Object.entries(query).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') search.set(key, String(value));
+  });
+  return `${url}${url.includes('?') ? '&' : '?'}${search.toString()}`;
+}
+
+function getQueryValue(handler: Handler, name: string) {
+  return handler.request.query?.[name] ?? handler.args?.[name];
+}
+
+function buildHandlerUrl(
+  handler: Handler,
+  name: string,
+  params: Record<string, unknown>,
+  query: Record<string, string | number | boolean | undefined> = {},
+) {
+  const cleanQuery = Object.fromEntries(
+    Object.entries(query).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+  ) as Record<string, string | number | boolean>;
+  const base = handler.url(name, params);
+  return Object.keys(cleanQuery).length ? appendQuery(base, cleanQuery) : base;
+}
+
+function appendScratchProblemActions(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
+  if (!config.enabled || typeof pdoc.content !== 'string' || pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
+  const tid = getQueryValue(handler, 'tid') as string | undefined;
+  const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
+  const submissionsUrl = buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId });
+  const editUrl = buildHandlerUrl(handler, 'scratch_problem_edit', { pid: pdoc.docId });
+  const canManage = handler.user?.own?.(pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || handler.user?.hasPerm(PERM.PERM_EDIT_PROBLEM);
+  const managerLinks = canManage
+    ? `\n\n教师入口：[查看提交 / 手动评分](${submissionsUrl}) | [编辑 Scratch 题目](${editUrl})`
+    : '';
+  pdoc.content = `${pdoc.content}
+
+${SCRATCH_ACTIONS_MARKER}
+
+---
+
+**Scratch 在线答题**
+
+[打开 Scratch 在线编辑器](${editorUrl})
+${managerLinks}`;
+}
+
+function normalizeProblemPid(pid: string | number | undefined, fallback: string | number) {
+  const next = pid === undefined || pid === null || pid === '' ? fallback : pid;
+  return typeof next === 'string' ? next : `P${next}`;
+}
+
+function buildScratchConfigPatch(
+  current: ScratchProblemConfig,
+  body: Record<string, any>,
+  userId: number,
+  isFormPost: boolean,
+) {
+  const disabledScratchExtensions = (body.disabledScratchExtensions ?? body.disabled_scratch_extensions) === undefined
+    ? current.disabledScratchExtensions
+    : parseStringArray(body.disabledScratchExtensions || body.disabled_scratch_extensions);
+  return {
+    enabled: parseBoolean(body.enabled, isFormPost ? false : current.enabled),
+    submitMode: body.submitMode || body.submit_mode || current.submitMode,
+    judgeMode: body.judgeMode || body.judge_mode || current.judgeMode,
+    allowDownloadTemplate: parseBoolean(body.allowDownloadTemplate, isFormPost ? false : current.allowDownloadTemplate),
+    maxProjectSizeMB: Number(body.maxProjectSizeMB || body.max_project_size_mb || current.maxProjectSizeMB),
+    maxUnpackedSizeMB: Number(body.maxUnpackedSizeMB || body.max_unpacked_size_mb || current.maxUnpackedSizeMB),
+    maxAssetSizeMB: Number(body.maxAssetSizeMB || body.max_asset_size_mb || current.maxAssetSizeMB),
+    maxAssetCount: Number(body.maxAssetCount || body.max_asset_count || current.maxAssetCount),
+    maxProjectJsonSizeMB: Number(body.maxProjectJsonSizeMB || body.max_project_json_size_mb || current.maxProjectJsonSizeMB),
+    disabledScratchExtensions,
+    maxScore: Number(body.maxScore || body.max_score || current.maxScore),
+    updatedBy: userId,
+  };
 }
 
 abstract class ScratchProblemHandler extends Handler {
@@ -102,9 +185,14 @@ export class ScratchProblemConfigHandler extends ScratchProblemHandler {
     this.response.body = {
       pdoc: this.pdoc,
       config: this.scratchConfig,
+      editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
       templateUploadUrl: this.url('scratch_problem_template', { pid: this.pdoc.docId }),
+      submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       templateDownloadUrl: this.scratchConfig.templatePath
         ? this.url('scratch_problem_template', { pid: this.pdoc.docId })
+        : '',
+      editorWorkspaceUrl: ['editor', 'both'].includes(this.scratchConfig.submitMode)
+        ? this.url('scratch_editor', { pid: this.pdoc.docId })
         : '',
     };
   }
@@ -113,22 +201,8 @@ export class ScratchProblemConfigHandler extends ScratchProblemHandler {
     this.ensureProblemManager();
     const body = this.args || {};
     const isFormPost = !this.request.json;
-    const disabledScratchExtensions = (body.disabledScratchExtensions ?? body.disabled_scratch_extensions) === undefined
-      ? this.scratchConfig.disabledScratchExtensions
-      : parseStringArray(body.disabledScratchExtensions || body.disabled_scratch_extensions);
     const config = await ScratchModel.setProblemConfig(this.pdoc.domainId, this.pdoc.docId, this.pluginConfig, {
-      enabled: parseBoolean(body.enabled, isFormPost ? false : this.scratchConfig.enabled),
-      submitMode: body.submitMode || body.submit_mode,
-      judgeMode: body.judgeMode || body.judge_mode || 'manual',
-      allowDownloadTemplate: parseBoolean(body.allowDownloadTemplate, isFormPost ? false : this.scratchConfig.allowDownloadTemplate),
-      maxProjectSizeMB: Number(body.maxProjectSizeMB || body.max_project_size_mb || this.scratchConfig.maxProjectSizeMB),
-      maxUnpackedSizeMB: Number(body.maxUnpackedSizeMB || body.max_unpacked_size_mb || this.scratchConfig.maxUnpackedSizeMB),
-      maxAssetSizeMB: Number(body.maxAssetSizeMB || body.max_asset_size_mb || this.scratchConfig.maxAssetSizeMB),
-      maxAssetCount: Number(body.maxAssetCount || body.max_asset_count || this.scratchConfig.maxAssetCount),
-      maxProjectJsonSizeMB: Number(body.maxProjectJsonSizeMB || body.max_project_json_size_mb || this.scratchConfig.maxProjectJsonSizeMB),
-      disabledScratchExtensions,
-      maxScore: Number(body.maxScore || body.max_score || this.scratchConfig.maxScore),
-      updatedBy: this.user._id,
+      ...buildScratchConfigPatch(this.scratchConfig, body, this.user._id, isFormPost),
     });
     this.response.body = { config };
     if (!this.request.json) this.response.redirect = this.url('scratch_problem_config', { pid: this.pdoc.docId });
@@ -163,13 +237,59 @@ export class ScratchProblemCreateHandler extends Handler {
     );
     await ScratchModel.setProblemConfig(domainId, docId, this.pluginConfig, {
       enabled: true,
-      submitMode: 'upload',
+      submitMode: 'editor',
       judgeMode: 'manual',
       maxScore: this.pluginConfig.maxScore,
       updatedBy: this.user._id,
     });
     this.response.body = { pid: pid || docId };
-    this.response.redirect = this.url('scratch_problem_config', { pid: pid || docId });
+    this.response.redirect = this.url('problem_detail', { pid: pid || docId });
+  }
+}
+
+export class ScratchProblemEditHandler extends ScratchProblemHandler {
+  async get() {
+    this.ensureProblemManager();
+    this.response.template = 'scratch_problem_edit.html';
+    this.response.body = {
+      pdoc: this.pdoc,
+      config: this.scratchConfig,
+      templateUploadUrl: this.url('scratch_problem_template', { pid: this.pdoc.docId }),
+      templateDownloadUrl: this.scratchConfig.templatePath
+        ? this.url('scratch_problem_template', { pid: this.pdoc.docId })
+        : '',
+      editorWorkspaceUrl: ['editor', 'both'].includes(this.scratchConfig.submitMode)
+        ? this.url('scratch_editor', { pid: this.pdoc.docId })
+        : '',
+      configUrl: this.url('scratch_problem_config', { pid: this.pdoc.docId }),
+      submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
+    };
+  }
+
+  @post('title', Types.Title)
+  @post('content', Types.Content)
+  @post('pid', Types.ProblemId, true)
+  @post('hidden', Types.Boolean, true)
+  async post(domainId: string, title: string, content: string, pid: string | number = '', hidden = false) {
+    this.ensureProblemManager();
+    if (typeof pid === 'string' && pid && !/^(?:[a-z0-9]{1,10}-)?[a-z][a-z0-9]*$/i.test(pid)) throw new ValidationError('pid');
+    const nextPid = normalizeProblemPid(pid, this.pdoc.pid || this.pdoc.docId);
+    if (nextPid !== this.pdoc.pid && await ProblemModel.get(domainId, nextPid)) {
+      throw new ValidationError(`Problem ${nextPid} already exists.`);
+    }
+    const pdoc = await ProblemModel.edit(domainId, this.pdoc.docId, {
+      title,
+      content,
+      pid: nextPid,
+      hidden,
+      html: false,
+    });
+    const body = this.args || {};
+    const config = await ScratchModel.setProblemConfig(domainId, this.pdoc.docId, this.pluginConfig, {
+      ...buildScratchConfigPatch(this.scratchConfig, body, this.user._id, !this.request.json),
+    });
+    this.response.body = { pdoc, config };
+    if (!this.request.json) this.response.redirect = this.url('scratch_problem_edit', { pid: nextPid || pdoc.docId });
   }
 }
 
@@ -178,6 +298,12 @@ export class ScratchProblemTemplateHandler extends ScratchProblemHandler {
     this.ensureScratchEnabled();
     if (!this.scratchConfig.templatePath) throw new NotFoundError('Scratch template');
     if (!this.scratchConfig.allowDownloadTemplate) this.ensureProblemManager();
+    if (this.request.query?.raw || this.args.raw) {
+      this.response.body = await StorageModel.get(this.scratchConfig.templatePath);
+      this.response.type = 'application/octet-stream';
+      this.response.disposition = `attachment; filename="${encodeURIComponent(this.scratchConfig.templateName || `problem-${this.pdoc.docId}-template.sb3`)}"`;
+      return;
+    }
     this.response.redirect = await StorageModel.signDownloadLink(
       this.scratchConfig.templatePath,
       this.scratchConfig.templateName || `problem-${this.pdoc.docId}-template.sb3`,
@@ -232,8 +358,8 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       false,
       { contest: tid, files: {}, type: 'judge' },
     );
-    const storageId = nanoid();
-    const projectPath = `${this.pluginConfig.storagePrefix}/${domainId}/submission/${this.user._id}/${storageId}${extname(originalName) || '.sb3'}`;
+    const submissionFileId = `${this.user._id}/${nanoid()}`;
+    const projectPath = `submission/${submissionFileId}`;
     await StorageModel.put(projectPath, file.filepath, this.user._id);
     const meta = await StorageModel.getMeta(projectPath);
     const submission: ScratchSubmissionMeta = {
@@ -253,8 +379,25 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     };
     await ScratchModel.addSubmission(submission);
     await RecordModel.update(domainId, rid, {
-      files: { code: `${projectPath}#${originalName}` },
+      files: { code: `${submissionFileId}#${originalName}` },
+      status: STATUS_IGNORED,
+      score: 0,
+      time: 0,
+      memory: 0,
+      progress: 100,
+      judgeAt: new Date(),
+      judger: 'scratch',
+      source: 'scratch',
       judgeTexts: ['Scratch submission uploaded. Waiting for manual score.'],
+      testCases: [{
+        id: 0,
+        subtaskId: 0,
+        status: STATUS_IGNORED,
+        score: 0,
+        time: 0,
+        memory: 0,
+        message: 'Scratch project saved without automatic judging.',
+      }],
     });
     await Promise.all([
       ProblemModel.inc(domainId, this.pdoc.docId, 'nSubmit', 1),
@@ -268,6 +411,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       validation,
       previewUrl: this.url('scratch_submission_preview', { rid }),
       downloadUrl: this.url('scratch_submission_project', { rid }),
+      scoreUrl: this.url('scratch_submission_score', { rid }),
     };
   }
 }
@@ -308,6 +452,12 @@ abstract class ScratchSubmissionHandler extends Handler {
 export class ScratchSubmissionProjectHandler extends ScratchSubmissionHandler {
   async get() {
     this.ensureCanReadSubmission();
+    if (hasQueryFlag(this, 'raw')) {
+      this.response.body = await StorageModel.get(this.submission.projectPath);
+      this.response.type = 'application/octet-stream';
+      this.response.disposition = `attachment; filename="${encodeURIComponent(this.submission.originalName)}"`;
+      return;
+    }
     this.response.redirect = await StorageModel.signDownloadLink(
       this.submission.projectPath,
       this.submission.originalName,
@@ -320,22 +470,18 @@ export class ScratchSubmissionProjectHandler extends ScratchSubmissionHandler {
 export class ScratchSubmissionPreviewHandler extends ScratchSubmissionHandler {
   async get() {
     this.ensureCanReadSubmission();
-    const projectUrl = await StorageModel.signDownloadLink(
-      this.submission.projectPath,
-      this.submission.originalName,
-      false,
-      'user',
-    );
+    const projectUrl = appendQuery(this.url('scratch_submission_project', { rid: this.rdoc._id }), { raw: 1 });
     this.response.template = 'scratch_preview.html';
     this.response.body = {
       pdoc: this.pdoc,
       rdoc: this.rdoc,
       submission: this.submission,
       projectUrl,
-      playerUrl: buildPreviewUrl(this.pluginConfig.previewPlayerUrl, projectUrl),
+      previewEditorUrl: buildScratchEditorUrl(this.pluginConfig),
       downloadUrl: this.url('scratch_submission_project', { rid: this.rdoc._id }),
       reportUrl: this.url('scratch_submission_report', { rid: this.rdoc._id }),
       scoreUrl: this.url('scratch_submission_score', { rid: this.rdoc._id }),
+      submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       canScore: this.canManageProblem(),
     };
   }
@@ -361,6 +507,21 @@ export class ScratchSubmissionReportHandler extends ScratchSubmissionHandler {
 }
 
 export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
+  async get() {
+    this.ensureCanScoreSubmission();
+    this.response.template = 'scratch_score.html';
+    this.response.body = {
+      pdoc: this.pdoc,
+      rdoc: this.rdoc,
+      submission: this.submission,
+      scoreUrl: this.url('scratch_submission_score', { rid: this.rdoc._id }),
+      previewUrl: this.url('scratch_submission_preview', { rid: this.rdoc._id }),
+      downloadUrl: this.url('scratch_submission_project', { rid: this.rdoc._id }),
+      submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
+      recordUrl: this.url('record_detail', { rid: this.rdoc._id }),
+    };
+  }
+
   @post('score', Types.Float)
   @post('comment', Types.String, true)
   async post(domainId: string, score: number, comment = '') {
@@ -388,6 +549,7 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       maxScore,
       status: scoreToStatus(score, maxScore),
     };
+    if (!this.request.json) this.response.redirect = this.url('scratch_submission_preview', { rid: this.rdoc._id });
   }
 }
 
@@ -397,7 +559,16 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
     const canReadAll = this.user.hasPerm(PERM.PERM_READ_RECORD_CODE) || this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF) || this.user.hasPerm(PERM.PERM_EDIT_PROBLEM);
     const query = canReadAll ? {} : { userId: this.user._id };
     const docs = await ScratchModel.getProblemSubmissions(domainId, this.pdoc.docId, query).limit(100).toArray();
-    this.response.body = { submissions: docs };
+    if (this.request.json) {
+      this.response.body = { submissions: docs };
+      return;
+    }
+    this.response.template = 'scratch_submissions.html';
+    this.response.body = {
+      pdoc: this.pdoc,
+      submissions: docs,
+      canScore: this.user.hasPerm(PERM.PERM_EDIT_PROBLEM) || this.user.own?.(this.pdoc, PERM.PERM_EDIT_PROBLEM_SELF),
+    };
   }
 }
 
@@ -406,14 +577,42 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
     pluginConfig = pluginConfig;
   };
   ctx.Route('scratch_problem_create', '/scratch/problem/create', bindConfig(ScratchProblemCreateHandler), PERM.PERM_CREATE_PROBLEM);
+  ctx.Route('scratch_problem_edit', '/scratch/problem/:pid/edit', bindConfig(ScratchProblemEditHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_config', '/scratch/problem/:pid/config', bindConfig(ScratchProblemConfigHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_template', '/scratch/problem/:pid/template', bindConfig(ScratchProblemTemplateHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_submissions', '/scratch/problem/:pid/submissions', bindConfig(ScratchProblemSubmissionsHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_editor', '/scratch/problem/:pid/editor', bindConfig(ScratchEditorHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_save_draft', '/scratch/problem/:pid/draft', bindConfig(ScratchDraftSaveHandler), PERM.PERM_SUBMIT_PROBLEM);
+  ctx.Route('scratch_load_draft', '/scratch/problem/:pid/draft', bindConfig(ScratchDraftLoadHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_draft_project', '/scratch/problem/:pid/draft/project', bindConfig(ScratchDraftProjectHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_submit', '/scratch/submit/:pid', bindConfig(ScratchSubmitHandler), PERM.PERM_SUBMIT_PROBLEM);
   ctx.Route('scratch_submission_project', '/scratch/submission/:rid/project', bindConfig(ScratchSubmissionProjectHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_submission_preview', '/scratch/submission/:rid/preview', bindConfig(ScratchSubmissionPreviewHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_submission_report', '/scratch/submission/:rid/report', bindConfig(ScratchSubmissionReportHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_submission_score', '/scratch/submission/:rid/score', bindConfig(ScratchSubmissionScoreHandler), PERM.PERM_EDIT_PROBLEM);
+  ctx.Route('scratch_asset_internal', '/scratch-assets/internalapi/asset/:filename/get', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_internal_slash', '/scratch-assets/internalapi/asset/:filename/get/', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_internal_direct', '/scratch-assets/internalapi/asset/:filename', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_internal_direct_slash', '/scratch-assets/internalapi/asset/:filename/', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_direct_get', '/scratch-assets/:filename/get', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_direct_get_slash', '/scratch-assets/:filename/get/', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_direct', '/scratch-assets/:filename', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_internal', '/api/scratch-assets/internalapi/asset/:filename/get', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_internal_slash', '/api/scratch-assets/internalapi/asset/:filename/get/', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_internal_direct', '/api/scratch-assets/internalapi/asset/:filename', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_internal_direct_slash', '/api/scratch-assets/internalapi/asset/:filename/', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_direct_get', '/api/scratch-assets/:filename/get', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_direct_get_slash', '/api/scratch-assets/:filename/get/', ScratchAssetProxyHandler);
+  ctx.Route('scratch_asset_api_direct', '/api/scratch-assets/:filename', ScratchAssetProxyHandler);
+
+  ctx.on?.('problem/get', async (pdoc: any, handler: Handler) => {
+    if (handler.request.json) return;
+    if (getQueryValue(handler, 'scratchActions') === '0') return;
+    if (!pdoc?.docId) return undefined;
+    const config = await ScratchModel.getProblemConfig(pdoc.domainId, pdoc.docId, pluginConfig);
+    if (!['editor', 'both'].includes(config.submitMode)) return;
+    appendScratchProblemActions(pdoc, handler, config);
+  });
 }
 
 export function mapValidationError(error: unknown) {

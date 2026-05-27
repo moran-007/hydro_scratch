@@ -4,5 +4,11 @@ dist/
 release/
 coverage/
 .turbo/
+.trae/
+.vendor/
 .env
 npm-debug.log*
+remote_exec.py
+*.tgz
+*.tar.gz
+*.zip

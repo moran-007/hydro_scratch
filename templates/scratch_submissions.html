@@ -1,0 +1,56 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+{{ set(UiContext, 'pdoc', pdoc) }}
+<div class="section">
+  <div class="section__header">
+    <h1 class="section__title">{{ _('Scratch Submissions') }}</h1>
+    <div class="section__tools">
+      <a class="rounded button" href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ _('Problem') }}</a>
+      <a class="rounded button" href="{{ url('scratch_problem_edit', pid=pdoc.docId) }}">{{ _('Edit') }}</a>
+      <a class="rounded button" href="{{ url('scratch_problem_config', pid=pdoc.docId) }}">{{ _('Settings') }}</a>
+    </div>
+  </div>
+  <div class="section__body">
+    {% if submissions.length %}
+    <table class="data-table scratch-submissions-table">
+      <thead>
+        <tr>
+          <th>{{ _('Record') }}</th>
+          <th>{{ _('User') }}</th>
+          <th>{{ _('Source') }}</th>
+          <th>{{ _('File') }}</th>
+          <th>{{ _('Score') }}</th>
+          <th>{{ _('Created At') }}</th>
+          <th>{{ _('Actions') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in submissions %}
+        <tr>
+          <td><a href="{{ url('record_detail', rid=item.rid) }}">{{ item.rid }}</a></td>
+          <td>{{ item.userId }}</td>
+          <td>{{ item.source }}</td>
+          <td>{{ item.originalName }}</td>
+          <td>{{ item.score if item.score !== undefined else '-' }} / {{ item.maxScore }}</td>
+          <td>{{ item.createdAt }}</td>
+          <td>
+            <a href="{{ url('scratch_submission_preview', rid=item.rid) }}">
+              {{ _('Preview') }}
+            </a>
+            {% if canScore %}
+            &nbsp;|&nbsp;
+            <a href="{{ url('scratch_submission_score', rid=item.rid) }}">
+              {{ _('Score') }}
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>{{ _('No Scratch submissions yet.') }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

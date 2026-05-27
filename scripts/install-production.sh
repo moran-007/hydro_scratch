@@ -8,7 +8,7 @@ TARGET_DIR="$ADDONS_DIR/$PLUGIN_NAME"
 BACKUP_DIR="$ADDONS_DIR/${PLUGIN_NAME}.bak.$(date +%Y%m%d%H%M%S)"
 
 if [[ -z "$PACKAGE_PATH" ]]; then
-  echo "Usage: $0 /path/to/hydro-plugin-scratch-0.1.0.tgz" >&2
+  echo "Usage: $0 /path/to/hydro-plugin-scratch-0.2.4.tgz" >&2
   exit 2
 fi
 
@@ -65,4 +65,3 @@ Backup:
 Next step:
   Restart Hydro with your server's process manager, then check logs.
 EOF
-

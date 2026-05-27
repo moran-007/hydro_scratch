@@ -1,9 +1,18 @@
 import { db } from 'hydrooj';
 import { defaultProblemConfig, normalizeProblemConfig } from './config';
-import type { PluginConfig, ScratchProblemConfig, ScratchSubmissionMeta } from './types';
+import type { PluginConfig, ScratchProblemConfig, ScratchSubmissionMeta, ScratchDraftMeta } from './types';
 
 const problemColl = db.collection('scratch.problem');
 const submissionColl = db.collection('scratch.submission');
+const draftColl = db.collection('scratch.draft');
+
+function buildCreatedAtSafeUpsert<T extends { createdAt: Date }>(doc: T) {
+  const { createdAt, ...rest } = doc;
+  return {
+    $set: rest,
+    $setOnInsert: { createdAt },
+  };
+}
 
 export class ScratchModel {
   static async getProblemConfig(
@@ -30,7 +39,7 @@ export class ScratchModel {
     });
     await problemColl.updateOne(
       { domainId, problemId },
-      { $set: next, $setOnInsert: { createdAt: next.createdAt } },
+      buildCreatedAtSafeUpsert(next),
       { upsert: true },
     );
     return next;
@@ -57,6 +66,19 @@ export class ScratchModel {
     return submissionColl.find({ domainId, problemId, ...query }).sort({ createdAt: -1 });
   }
 
+  static async saveDraft(meta: ScratchDraftMeta) {
+    await draftColl.updateOne(
+      { domainId: meta.domainId, problemId: meta.problemId, userId: meta.userId },
+      buildCreatedAtSafeUpsert({ ...meta, updatedAt: new Date() }),
+      { upsert: true },
+    );
+    return meta;
+  }
+
+  static async getLatestDraft(domainId: string, problemId: number, userId: number): Promise<ScratchDraftMeta | null> {
+    return draftColl.findOne({ domainId, problemId, userId });
+  }
+
   static async ensureIndexes() {
     await Promise.all([
       db.ensureIndexes(
@@ -69,7 +91,11 @@ export class ScratchModel {
         { key: { domainId: 1, rid: 1 }, unique: true, name: 'record' },
         { key: { domainId: 1, userId: 1, problemId: 1, createdAt: -1 }, name: 'userProblem' },
       ),
+      db.ensureIndexes(
+        draftColl,
+        { key: { domainId: 1, problemId: 1, userId: 1 }, unique: true, name: 'draftOwner' },
+        { key: { domainId: 1, userId: 1, updatedAt: -1 }, name: 'draftRecent' },
+      ),
     ]);
   }
 }
-

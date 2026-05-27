@@ -56,6 +56,19 @@ export interface ScratchSubmissionMeta {
   updatedAt: Date;
 }
 
+export interface ScratchDraftMeta {
+  domainId: string;
+  problemId: number;
+  userId: number;
+  draftId: string;
+  draftPath: string;
+  originalName: string;
+  fileSize: number;
+  validation: ScratchValidationSummary;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ScratchValidationSummary {
   projectJsonSize: number;
   unpackedSize: number;
@@ -75,5 +88,7 @@ export interface PluginConfig {
   maxProjectJsonSizeMB: number;
   maxScore: number;
   previewPlayerUrl: string;
+  scratchEditorUrl: string;
+  scratchEditorOrigin: string;
+  scratchAssetHost: string;
 }
-
