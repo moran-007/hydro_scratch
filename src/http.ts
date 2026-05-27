@@ -248,12 +248,35 @@ function formatDateTime(value: unknown) {
   return date.toLocaleString('zh-CN', { hour12: false });
 }
 
+function compactRecordId(value: unknown) {
+  const text = String(value || '');
+  return text.length > 12 ? `${text.slice(0, 8)}...${text.slice(-4)}` : text;
+}
+
+function recordProblemId(rdoc: any) {
+  return rdoc?.pid ?? rdoc?.problemId;
+}
+
 function recordContestId(rdoc: any) {
   const value = rdoc?.contest;
   if (!value) return '';
   const text = typeof value?.toHexString === 'function' ? value.toHexString() : String(value);
   if (!text || /^0{24}$/.test(text) || /^0{23}[01]$/.test(text)) return '';
   return text;
+}
+
+function contestDocId(tdoc: any) {
+  return tdoc?.docId ?? tdoc?._id;
+}
+
+function normalizedQueryText(value: unknown) {
+  return String(value || '').trim();
+}
+
+function problemDisplayLabel(pdoc: any, fallbackId: unknown) {
+  const docId = pdoc?.docId ?? fallbackId;
+  const pid = pdoc?.pid || normalizeProblemPid(undefined, docId);
+  return pdoc?.title ? `${pid} ${pdoc.title}` : String(pid);
 }
 
 function submissionFilterValue(value: unknown, allowed: string[], fallback: string) {
@@ -361,27 +384,56 @@ async function listScratchSubmissionMeta(
   return docs;
 }
 
+function addUniqueRecords(target: any[], rows: any[]) {
+  for (const row of rows || []) {
+    const rid = recordId(row);
+    if (rid && !target.some((item) => sameRecordId(recordId(item), rid))) target.push(row);
+  }
+}
+
 async function listScratchRecordsForProblem(
   domainId: string,
   problemIds: any[],
   uid: number | undefined,
 ) {
   const docs: any[] = [];
-  const addDocs = (rows: any[]) => {
-    for (const row of rows || []) {
-      const rid = recordId(row);
-      if (rid && !docs.some((item) => sameRecordId(recordId(item), rid))) docs.push(row);
-    }
-  };
   const ownerQuery = uid === undefined ? {} : { uid };
-  addDocs(await HydroApi.record.listByProblems(domainId, problemIds, uid, { sort: { _id: -1 }, limit: uid === undefined ? 1000 : 500 }));
+  addUniqueRecords(docs, await HydroApi.record.listByProblems(domainId, problemIds, uid, { sort: { _id: -1 }, limit: uid === undefined ? 1000 : 500 }));
   for (const problemId of problemIds) {
-    addDocs(await HydroApi.record.list(domainId, { ...ownerQuery, pid: problemId }, { sort: { _id: -1 }, limit: 100 }));
+    addUniqueRecords(docs, await HydroApi.record.list(domainId, { ...ownerQuery, pid: problemId }, { sort: { _id: -1 }, limit: 100 }));
   }
-  addDocs(await HydroApi.record.listScratchCandidates(domainId, uid, { sort: { _id: -1 }, limit: uid === undefined ? 1000 : 500 }));
+  addUniqueRecords(docs, await HydroApi.record.listScratchCandidates(domainId, uid, { sort: { _id: -1 }, limit: uid === undefined ? 1000 : 500 }));
   const scratchDocs = docs.filter((rdoc) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc));
   const problemDocs = scratchDocs.filter((rdoc) => recordBelongsToProblem(rdoc, problemIds));
   return problemDocs.length ? problemDocs : scratchDocs;
+}
+
+async function listScratchRecordsForContests(
+  domainId: string,
+  contestDocs: any[],
+  uid: number | undefined,
+) {
+  const contestValues: any[] = [];
+  const seen = new Set<string>();
+  const addContestValue = (value: any) => {
+    if (value === undefined || value === null || value === '') return;
+    for (const item of [value, String(value)]) {
+      const key = `${typeof item}:${String(item)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        contestValues.push(item);
+      }
+    }
+  };
+  for (const tdoc of contestDocs) addContestValue(contestDocId(tdoc));
+  if (!contestValues.length) return [];
+  const ownerQuery = uid === undefined ? {} : { uid };
+  const query = {
+    ...ownerQuery,
+    contest: contestValues.length === 1 ? contestValues[0] : { $in: contestValues },
+  };
+  const docs = await HydroApi.record.list(domainId, query, { sort: { _id: -1 }, limit: uid === undefined ? 2000 : 500 });
+  return docs.filter((rdoc: any) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc));
 }
 
 async function buildSubmissionRows(handler: Handler, domainId: string, docs: ScratchSubmissionMeta[], rdocs: any[]) {
@@ -392,6 +444,10 @@ async function buildSubmissionRows(handler: Handler, domainId: string, docs: Scr
   }
   const userIds = docs.map((item) => Number(item.userId)).filter((uid) => Number.isFinite(uid));
   const udict = await HydroApi.user.getList(domainId, userIds);
+  const problemIds = docs
+    .map((item) => recordProblemId(recordByRid.get(String(item.rid))) ?? item.problemId)
+    .filter((pid) => pid !== undefined && pid !== null && pid !== '');
+  const pdict = await HydroApi.problem.getList(domainId, problemIds);
   const contestIds = new Map<string, any>();
   for (const rdoc of rdocs || []) {
     const contestId = recordContestId(rdoc);
@@ -409,12 +465,14 @@ async function buildSubmissionRows(handler: Handler, domainId: string, docs: Scr
     const rdoc = recordByRid.get(String(item.rid));
     const uid = Number(item.userId);
     const udoc = udict?.[uid] || udict?.[String(uid)] || {};
+    const problemId = recordProblemId(rdoc) ?? item.problemId;
+    const rowPdoc = pdict?.[problemId] || pdict?.[String(problemId)] || {};
     const contestId = recordContestId(rdoc);
     const tdoc = contestId ? contestDict[contestId] : null;
     const originType = !contestId ? 'normal' : tdoc?.rule === 'homework' ? 'homework' : 'contest';
     const originLabel = originType === 'normal'
-      ? 'Normal'
-      : `${originType === 'homework' ? 'Homework' : 'Contest'}${tdoc?.title ? `: ${tdoc.title}` : ''}`;
+      ? '常规提交'
+      : tdoc?.title || (originType === 'homework' ? '作业' : '比赛');
     const originUrl = contestId
       ? handler.url(originType === 'homework' ? 'homework_detail' : 'contest_detail', { tid: contestId })
       : '';
@@ -424,6 +482,10 @@ async function buildSubmissionRows(handler: Handler, domainId: string, docs: Scr
       ...item,
       userId: rdoc?.uid ?? item.userId,
       userName: udoc.displayName || udoc.uname || String(item.userId),
+      ridText: compactRecordId(item.rid),
+      problemId,
+      problemLabel: problemDisplayLabel(rowPdoc, problemId),
+      problemUrl: handler.url('problem_detail', { pid: problemId }),
       submitMethod: item.source || 'editor',
       sourceType: originType,
       sourceLabel: originLabel,
@@ -1003,9 +1065,14 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
     const canManage = userCanManageProblem(this.user, this.pdoc);
     const canReadAll = userCanReadAllScratchRecords(this.user, this.pdoc);
     const problemIds = getProblemIdCandidates(this.pdoc, this.routePid);
+    const contestQuery = normalizedQueryText(getQueryValue(this, 'contest'));
     const query = canReadAll ? {} : { userId: this.user._id };
-    const metaDocs = await listScratchSubmissionMeta(effectiveDomainId, problemIds, query);
-    const rdocs = await listScratchRecordsForProblem(effectiveDomainId, problemIds, canReadAll ? undefined : this.user._id);
+    const contestDocs = contestQuery ? await HydroApi.contest.searchByTitle(effectiveDomainId, contestQuery, { limit: 20 }) : [];
+    const contestMode = !!contestQuery;
+    const metaDocs = contestMode ? [] : await listScratchSubmissionMeta(effectiveDomainId, problemIds, query);
+    const rdocs = contestMode
+      ? await listScratchRecordsForContests(effectiveDomainId, contestDocs, canReadAll ? undefined : this.user._id)
+      : await listScratchRecordsForProblem(effectiveDomainId, problemIds, canReadAll ? undefined : this.user._id);
     const fallbackDocs = rdocs
       .filter((rdoc: any) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc))
       .map((rdoc: any) => buildSubmissionFromRecord(effectiveDomainId, this.pdoc, rdoc, this.scratchConfig))
@@ -1022,7 +1089,8 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
         canManage,
         canReadAll,
         problemIds,
-        filters: { origin: originFilter, status: statusFilter },
+        contestMatches: contestDocs.map((tdoc: any) => ({ id: contestDocId(tdoc), title: tdoc.title, rule: tdoc.rule })),
+        filters: { origin: originFilter, status: statusFilter, contest: contestQuery },
       };
       return;
     }
@@ -1036,6 +1104,8 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
       canScore: canManage,
       originFilter,
       statusFilter,
+      contestFilter: contestQuery,
+      contestMatches: contestDocs.map((tdoc: any) => ({ id: contestDocId(tdoc), title: tdoc.title, rule: tdoc.rule })),
       scoredRid: getQueryValue(this, 'scored') || '',
       editorUrl: this.url('scratch_editor', { pid: this.pdoc.docId }),
       problemUrl: this.url('problem_detail', { pid: this.pdoc.docId }),

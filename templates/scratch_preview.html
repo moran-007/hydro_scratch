@@ -9,25 +9,14 @@
           <a class="rounded button" href="{{ problemUrl }}">
             {{ _('Problem') }}
           </a>
-          <a class="rounded button" href="{{ submissionsUrl }}">
-            {{ _('Submissions') }}
-          </a>
           <a class="rounded button" href="{{ downloadUrl }}">
             <span class="icon icon-download"></span>
             {{ _('Download') }}
-          </a>
-          <a class="rounded button" href="{{ reportUrl }}">
-            {{ _('Report') }}
           </a>
           {% if previewEditorUrl %}
           <button class="rounded button" type="button" id="scratch-preview-float">
             {{ _('Floating Window') }}
           </button>
-          {% endif %}
-          {% if canScore %}
-          <a class="rounded primary button" href="{{ scoreUrl }}">
-            {{ _('Manual Score') }}
-          </a>
           {% endif %}
         </div>
       </div>
@@ -80,9 +69,6 @@
     <div class="section side">
       <div class="section__header">
         <h1 class="section__title">{{ _('Manual Score') }}</h1>
-        <div class="section__tools">
-          <a class="rounded button" href="{{ scoreUrl }}">{{ _('Open Score Page') }}</a>
-        </div>
       </div>
       <div class="section__body">
         <form action="{{ scoreUrl }}" method="post">
@@ -98,7 +84,7 @@
               value:submission.manualComment or '',
               rows:4
             }) }}
-          <input type="submit" class="rounded primary button expanded" value="{{ _('Save') }}">
+          <input type="submit" class="rounded primary button expanded" value="{{ _('Save Score') }}">
         </form>
         <p class="typo">
           <a href="{{ submissionsUrl }}">{{ _('Back to Scratch submissions') }}</a>

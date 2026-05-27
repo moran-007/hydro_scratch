@@ -3,13 +3,13 @@
 This plugin is packaged as:
 
 ```text
-release/hydro-plugin-scratch-0.2.10.tgz
+release/hydro-plugin-scratch-0.2.11.tgz
 ```
 
 For an existing installation, use the delta update package instead:
 
 ```text
-release/hydro-plugin-scratch-update-0.2.10.tgz
+release/hydro-plugin-scratch-update-0.2.11.tgz
 ```
 
 The delta package only contains files changed in this release.
@@ -21,7 +21,7 @@ Deploy it on the production server as the same Linux user that runs Hydro.
 From your local machine:
 
 ```bash
-scp release/hydro-plugin-scratch-0.2.10.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.2.11.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -31,7 +31,7 @@ On the server:
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.10.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.11.tgz
 ```
 
 By default the script installs to:
@@ -43,7 +43,7 @@ By default the script installs to:
 Override if your Hydro uses another addon directory:
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.10.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.11.tgz
 ```
 
 ## 3. Restart Hydro
@@ -81,4 +81,5 @@ The install script prints the backup directory when it replaces an existing plug
 ```
 
 Restart Hydro after rollback.
+
 

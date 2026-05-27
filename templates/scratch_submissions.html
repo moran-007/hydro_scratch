@@ -6,76 +6,89 @@
     <div>
       <h1 class="section__title">
         {% if canManage %}
-        {{ _('Scratch Review Queue') }}
+        Scratch 批改队列
         {% else %}
-        {{ _('My Scratch Submissions') }}
+        我的 Scratch 提交
         {% endif %}
       </h1>
       <p class="scratch-submissions__hint">
-        {% if canManage %}
-        {{ _('Teacher view: all Scratch submissions for this problem are listed here.') }}
-        {% else %}
-        {{ _('Student view: your submitted Scratch projects and record links are listed here.') }}
-        {% endif %}
-        {{ _('Showing') }} {{ submissions.length }} / {{ totalSubmissions }}.
+        当前显示 {{ submissions.length }} 条，共 {{ totalSubmissions }} 条。
       </p>
     </div>
     <div class="section__tools scratch-submissions__tools">
-      <a class="rounded button" href="{{ problemUrl }}">{{ _('Problem') }}</a>
-      <a class="rounded button" href="{{ editorUrl }}">{{ _('Scratch Editor') }}</a>
-      <a class="rounded button" href="{{ recordListUrl }}">{{ _('Hydro Records') }}</a>
+      <a class="rounded button" href="{{ problemUrl }}">题目</a>
+      <a class="rounded button" href="{{ editorUrl }}">Scratch 编辑器</a>
       {% if canManage %}
-      <a class="rounded button" href="{{ editUrl }}">{{ _('Edit Problem') }}</a>
-      <a class="rounded button" href="{{ configUrl }}">{{ _('Settings') }}</a>
+      <a class="rounded button" href="{{ editUrl }}">编辑题目</a>
+      <a class="rounded button" href="{{ configUrl }}">设置</a>
       {% endif %}
     </div>
   </div>
   <div class="section__body">
     <form class="scratch-submissions__filters" method="get">
+      <label class="scratch-submissions__filter-wide">
+        比赛 / 作业名称
+        <input name="contest" value="{{ contestFilter }}" placeholder="按比赛名称筛选全场提交">
+      </label>
       <label>
-        {{ _('Source') }}
+        来源
         <select name="origin">
-          <option value="all" {% if originFilter == 'all' %}selected{% endif %}>{{ _('All') }}</option>
-          <option value="normal" {% if originFilter == 'normal' %}selected{% endif %}>{{ _('Normal') }}</option>
-          <option value="contest" {% if originFilter == 'contest' %}selected{% endif %}>{{ _('Contest') }}</option>
-          <option value="homework" {% if originFilter == 'homework' %}selected{% endif %}>{{ _('Homework') }}</option>
+          <option value="all" {% if originFilter == 'all' %}selected{% endif %}>全部</option>
+          <option value="normal" {% if originFilter == 'normal' %}selected{% endif %}>常规提交</option>
+          <option value="contest" {% if originFilter == 'contest' %}selected{% endif %}>比赛</option>
+          <option value="homework" {% if originFilter == 'homework' %}selected{% endif %}>作业</option>
         </select>
       </label>
       <label>
-        {{ _('Review Status') }}
+        状态
         <select name="status">
-          <option value="all" {% if statusFilter == 'all' %}selected{% endif %}>{{ _('All') }}</option>
-          <option value="waiting" {% if statusFilter == 'waiting' %}selected{% endif %}>{{ _('Waiting') }}</option>
-          <option value="scored" {% if statusFilter == 'scored' %}selected{% endif %}>{{ _('Scored') }}</option>
+          <option value="all" {% if statusFilter == 'all' %}selected{% endif %}>全部</option>
+          <option value="waiting" {% if statusFilter == 'waiting' %}selected{% endif %}>待评分</option>
+          <option value="scored" {% if statusFilter == 'scored' %}selected{% endif %}>已评分</option>
         </select>
       </label>
-      <button class="rounded button" type="submit">{{ _('Filter') }}</button>
-      <a class="rounded button" href="{{ url('scratch_problem_submissions', pid=pdoc.docId) }}">{{ _('Reset') }}</a>
+      <button class="rounded primary button" type="submit">查询</button>
+      <a class="rounded button" href="{{ url('scratch_problem_submissions', pid=pdoc.docId) }}">重置</a>
     </form>
+
+    {% if contestFilter %}
+    <div class="scratch-submissions__query-note">
+      {% if contestMatches.length %}
+      已按比赛 / 作业名称 “{{ contestFilter }}” 查询：
+      {% for contest in contestMatches %}
+      <span>{{ contest.title }}</span>
+      {% endfor %}
+      {% else %}
+      未找到名称包含 “{{ contestFilter }}” 的比赛或作业。
+      {% endif %}
+    </div>
+    {% endif %}
 
     {% if submissions.length %}
     <div class="scratch-submissions__table-wrap">
       <table class="data-table scratch-submissions-table">
         <thead>
           <tr>
-            <th>{{ _('Record') }}</th>
+            <th>提交</th>
+            <th>题目</th>
             {% if canReadAll %}
-            <th>{{ _('User') }}</th>
+            <th>学生</th>
             {% endif %}
-            <th>{{ _('Source') }}</th>
-            <th>{{ _('Method') }}</th>
-            <th>{{ _('File') }}</th>
-            <th>{{ _('Review Status') }}</th>
-            <th>{{ _('Judge Status') }}</th>
-            <th>{{ _('Score') }}</th>
-            <th>{{ _('Created At') }}</th>
-            <th>{{ _('Actions') }}</th>
+            <th>来源</th>
+            <th>状态 / 分数</th>
+            <th>提交时间</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
           {% for item in submissions %}
           <tr>
-            <td><a href="{{ item.recordUrl }}">{{ item.rid }}</a></td>
+            <td>
+              <a class="scratch-submissions__rid" href="{{ item.recordUrl }}" title="{{ item.rid }}">{{ item.ridText }}</a>
+            </td>
+            <td class="scratch-submissions__problem">
+              <a href="{{ item.problemUrl }}">{{ item.problemLabel }}</a>
+            </td>
             {% if canReadAll %}
             <td>
               <strong>{{ item.userName }}</strong>
@@ -89,31 +102,23 @@
               {{ item.sourceLabel }}
               {% endif %}
             </td>
-            <td>{{ item.submitMethod }}</td>
-            <td class="scratch-submissions__file">{{ item.originalName }}</td>
             <td>
-              {% if item.scored %}
-              <span class="scratch-submissions__status scratch-submissions__status--scored">{{ _('Scored') }}</span>
-              {% else %}
-              <span class="scratch-submissions__status scratch-submissions__status--waiting">{{ _('Waiting') }}</span>
-              {% endif %}
+              <div class="scratch-submissions__score">
+                {% if item.scored %}
+                <span class="scratch-submissions__status scratch-submissions__status--scored">已评分</span>
+                <strong>{{ item.score if item.score !== undefined else 0 }} / {{ item.maxScore }}</strong>
+                {% else %}
+                <span class="scratch-submissions__status scratch-submissions__status--waiting">待评分</span>
+                <strong>- / {{ item.maxScore }}</strong>
+                {% endif %}
+              </div>
             </td>
-            <td>{{ item.judgeStatusLabel }}</td>
-            <td>
-              {% if item.scored %}
-              {{ item.score if item.score !== undefined else 0 }} / {{ item.maxScore }}
-              {% else %}
-              - / {{ item.maxScore }}
-              {% endif %}
-            </td>
-            <td>{{ item.createdAtText }}</td>
+            <td class="scratch-submissions__time">{{ item.createdAtText }}</td>
             <td>
               <div class="scratch-submissions__actions">
-                <a class="rounded button small" href="{{ item.previewUrl }}">{{ _('Preview') }}</a>
-                <a class="rounded button small" href="{{ item.downloadUrl }}">{{ _('Download') }}</a>
-                <a class="rounded button small" href="{{ item.recordUrl }}">{{ _('Record') }}</a>
+                <a class="rounded button small" href="{{ item.previewUrl }}">预览</a>
                 {% if canScore %}
-                <a class="rounded primary button small" href="{{ item.scoreUrl }}">{{ _('Score') }}</a>
+                <a class="rounded primary button small" href="{{ item.scoreUrl }}">评分</a>
                 {% endif %}
               </div>
             </td>
@@ -124,11 +129,7 @@
     </div>
     {% else %}
     <div class="scratch-submissions__empty">
-      {% if canManage %}
-      {{ _('No Scratch submissions matched the current filters. Open Hydro Records to check native submissions.') }}
-      {% else %}
-      {{ _('No Scratch submissions matched the current filters.') }}
-      {% endif %}
+      当前筛选条件下没有 Scratch 提交记录。
     </div>
     {% endif %}
   </div>
@@ -153,39 +154,80 @@
   gap: 8px;
 }
 
+.scratch-submissions__tools {
+  justify-content: flex-end;
+}
+
 .scratch-submissions__filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: end;
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) auto auto;
   gap: 10px;
-  margin: 0 0 14px;
+  align-items: end;
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  background: #fafafa;
 }
 
 .scratch-submissions__filters label {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 150px;
   color: #666;
   font-size: 13px;
 }
 
+.scratch-submissions__filters input,
 .scratch-submissions__filters select {
-  min-height: 32px;
+  min-height: 34px;
 }
 
-.scratch-submissions__tools {
-  justify-content: flex-end;
+.scratch-submissions__query-note {
+  margin: 0 0 12px;
+  color: #666;
+  font-size: 13px;
+}
+
+.scratch-submissions__query-note span {
+  display: inline-block;
+  margin: 0 6px 6px 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: #2f6fad;
 }
 
 .scratch-submissions__table-wrap {
   overflow-x: auto;
 }
 
-.scratch-submissions__file {
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.scratch-submissions-table {
+  min-width: 980px;
+}
+
+.scratch-submissions-table th,
+.scratch-submissions-table td {
+  vertical-align: middle;
+}
+
+.scratch-submissions__rid {
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+.scratch-submissions__problem {
+  min-width: 220px;
+}
+
+.scratch-submissions__time {
+  white-space: nowrap;
+}
+
+.scratch-submissions__score {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
 }
 
@@ -223,13 +265,17 @@
   color: #666;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .scratch-submissions__header {
     flex-direction: column;
   }
 
   .scratch-submissions__tools {
     justify-content: flex-start;
+  }
+
+  .scratch-submissions__filters {
+    grid-template-columns: 1fr;
   }
 }
 </style>

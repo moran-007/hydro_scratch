@@ -17,6 +17,10 @@ function withDomain(domainId: string, query: Record<string, any>) {
   return domainId ? { domainId, ...query } : { ...query };
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function cursorToArray(cursor: any, options: CursorOptions = {}) {
   if (!cursor) return [];
   let next = cursor;
@@ -78,6 +82,29 @@ export const HydroApi = {
     add: (...args: any[]) => (ProblemModel as any).add(...args),
     edit: (...args: any[]) => (ProblemModel as any).edit(...args),
     get: (...args: any[]) => (ProblemModel as any).get(...args),
+    async getList(domainId: string, problemIds: any[]) {
+      const ids = uniqueProblemIds(problemIds)
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id));
+      if (!ids.length) return {};
+      if (typeof (ProblemModel as any).getList === 'function') {
+        try {
+          return await (ProblemModel as any).getList(domainId, ids, true, false);
+        } catch {
+          // Fall through to one-by-one lookup for older Hydro versions.
+        }
+      }
+      const result: Record<string, any> = {};
+      await Promise.all(ids.map(async (id) => {
+        try {
+          const pdoc = await (ProblemModel as any).get(domainId, id);
+          if (pdoc) result[String(id)] = pdoc;
+        } catch {
+          // Ignore missing or hidden problems in review list decoration.
+        }
+      }));
+      return result;
+    },
     inc: (...args: any[]) => (ProblemModel as any).inc(...args),
   },
 
@@ -138,6 +165,18 @@ export const HydroApi = {
 
   contest: {
     get: (...args: any[]) => (ContestModel as any).get(...args),
+    async list(domainId: string, query: Record<string, any>, options: CursorOptions = {}) {
+      if (typeof (ContestModel as any).getMulti !== 'function') return [];
+      return await cursorToArray((ContestModel as any).getMulti(domainId, query), options);
+    },
+    async searchByTitle(domainId: string, title: string, options: CursorOptions = {}) {
+      const text = String(title || '').trim();
+      if (!text) return [];
+      return await this.list(domainId, { title: new RegExp(escapeRegExp(text), 'i') }, {
+        sort: options.sort,
+        limit: options.limit || 20,
+      });
+    },
     updateStatus: (...args: any[]) => (ContestModel as any).updateStatus(...args),
   },
 
