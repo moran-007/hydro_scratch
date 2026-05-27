@@ -40,6 +40,7 @@
             {% endif %}
             <th>{{ _('Source') }}</th>
             <th>{{ _('File') }}</th>
+            <th>{{ _('Review Status') }}</th>
             <th>{{ _('Score') }}</th>
             <th>{{ _('Created At') }}</th>
             <th>{{ _('Actions') }}</th>
@@ -54,7 +55,20 @@
             {% endif %}
             <td>{{ item.source }}</td>
             <td class="scratch-submissions__file">{{ item.originalName }}</td>
-            <td>{{ item.score if item.score !== undefined else '-' }} / {{ item.maxScore }}</td>
+            <td>
+              {% if item.scored %}
+              <span class="scratch-submissions__status scratch-submissions__status--scored">已评分</span>
+              {% else %}
+              <span class="scratch-submissions__status scratch-submissions__status--waiting">待评分</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.scored %}
+              {{ item.score if item.score !== undefined else 0 }} / {{ item.maxScore }}
+              {% else %}
+              - / {{ item.maxScore }}
+              {% endif %}
+            </td>
             <td>{{ item.createdAt }}</td>
             <td>
               <div class="scratch-submissions__actions">
@@ -119,6 +133,23 @@
 
 .scratch-submissions__actions .button {
   margin: 0;
+}
+
+.scratch-submissions__status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.scratch-submissions__status--scored {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.scratch-submissions__status--waiting {
+  background: #fff3e0;
+  color: #ef6c00;
 }
 
 .scratch-submissions__empty {

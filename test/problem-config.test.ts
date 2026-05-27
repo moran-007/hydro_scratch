@@ -666,4 +666,63 @@ describe('Scratch problem config upsert', () => {
       }],
     });
   });
+
+  it('ScratchProblemSubmissionsHandler.get also searches the route pid for older records', async () => {
+    const { defaultProblemConfig } = await import('../src/config');
+    const { ScratchProblemSubmissionsHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemSubmissionsHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.routePid = 1;
+    handler.pdoc = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Scratch title',
+      owner: 11,
+    };
+    handler.scratchConfig = {
+      ...defaultProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG),
+      enabled: true,
+      maxScore: 100,
+    };
+    handler.request = {};
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => false,
+    };
+    hydroState.recordGetMulti.mockImplementation((_domainId: string, query: Record<string, unknown>) => ({
+      sort() { return this; },
+      limit() { return this; },
+      async toArray() {
+        if (query.pid !== 1) return [];
+        return [{
+          _id: 'rid-route-pid',
+          domainId: 'system',
+          pid: 1,
+          uid: 22,
+          lang: 'scratch3',
+          source: 'scratch',
+          status: 0,
+          score: 100,
+          files: { code: '22/project-file#route.sb3' },
+          judgeAt: new Date('2026-05-26T11:47:40.443Z'),
+        }];
+      },
+    }));
+
+    await expect(handler.get('system')).resolves.toBeUndefined();
+
+    expect(hydroState.recordGetMulti).toHaveBeenCalledWith('system', { pid: 1 });
+    expect(handler.response.body).toMatchObject({
+      submissions: [{
+        rid: 'rid-route-pid',
+        problemId: 1,
+        userId: 22,
+        scored: true,
+        score: 100,
+      }],
+    });
+  });
 });

@@ -51,6 +51,8 @@ export interface ScratchSubmissionMeta {
   manualScoreBy?: number;
   manualScoreAt?: Date;
   manualComment?: string;
+  status?: number;
+  scored?: boolean;
   previewAvailable: boolean;
   createdAt: Date;
   updatedAt: Date;

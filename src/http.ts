@@ -185,6 +185,53 @@ function recordCreatedAt(rdoc: any) {
   return new Date();
 }
 
+function getProblemIdCandidates(pdoc: any, routePid?: string | number) {
+  const values: unknown[] = [pdoc?.docId, pdoc?.pid, routePid];
+  const result: any[] = [];
+  const seen = new Set<string>();
+  const add = (value: unknown) => {
+    if (value === undefined || value === null || value === '') return;
+    const key = `${typeof value}:${String(value)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(value);
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value)) {
+      const numeric = Number(value);
+      const numericKey = `number:${numeric}`;
+      if (!seen.has(numericKey)) {
+        seen.add(numericKey);
+        result.push(numeric);
+      }
+    }
+  };
+  values.forEach(add);
+  return result;
+}
+
+function textContainsProblemLink(value: unknown, problemIds: any[]) {
+  if (!value) return false;
+  const text = Array.isArray(value) ? value.join('\n') : String(value);
+  return problemIds.some((id) => {
+    const encoded = encodeURIComponent(String(id));
+    return text.includes(`/problem/${id}/`) || text.includes(`/problem/${encoded}/`);
+  });
+}
+
+function recordBelongsToProblem(rdoc: any, problemIds: any[]) {
+  if (problemIds.some((id) => sameRecordId(rdoc?.pid, id))) return true;
+  if (textContainsProblemLink(rdoc?.code, problemIds)) return true;
+  if (textContainsProblemLink(rdoc?.judgeTexts, problemIds)) return true;
+  return false;
+}
+
+function isRecordScored(rdoc: any) {
+  if (!rdoc) return false;
+  if (rdoc.status !== undefined && Number(rdoc.status) !== STATUS_IGNORED) return true;
+  const texts = Array.isArray(rdoc.judgeTexts) ? rdoc.judgeTexts.join('\n') : String(rdoc.judgeTexts || '');
+  return /Manual Scratch score|Scratch score/i.test(texts);
+}
+
 function parseRecordProjectFile(rdoc: any) {
   const raw = rdoc?.files?.code;
   if (!raw || typeof raw !== 'string') return null;
@@ -230,6 +277,8 @@ function buildSubmissionFromRecord(
     validation: buildEmptyValidation(),
     score: rdoc.score,
     maxScore: config.maxScore || 100,
+    status: rdoc.status,
+    scored: isRecordScored(rdoc),
     previewAvailable: true,
     createdAt,
     updatedAt: rdoc.judgeAt instanceof Date ? rdoc.judgeAt : createdAt,
@@ -237,15 +286,66 @@ function buildSubmissionFromRecord(
 }
 
 function mergeSubmissionRecords(metaDocs: ScratchSubmissionMeta[], fallbackDocs: ScratchSubmissionMeta[]) {
-  const merged = [...metaDocs];
+  const merged = metaDocs.map((item) => ({ ...item }));
   for (const fallback of fallbackDocs) {
-    if (!merged.some((item) => sameRecordId(item.rid, fallback.rid))) merged.push(fallback);
+    const existing = merged.find((item) => sameRecordId(item.rid, fallback.rid));
+    if (!existing) {
+      merged.push(fallback);
+      continue;
+    }
+    if (existing.score === undefined && fallback.score !== undefined) existing.score = fallback.score;
+    if (existing.status === undefined && fallback.status !== undefined) existing.status = fallback.status;
+    if (!existing.scored && fallback.scored) existing.scored = true;
+    if (!existing.manualScoreAt && fallback.scored) existing.updatedAt = fallback.updatedAt;
   }
   return merged.sort((left, right) => {
     const leftTime = left.createdAt instanceof Date ? left.createdAt.getTime() : new Date(left.createdAt).getTime();
     const rightTime = right.createdAt instanceof Date ? right.createdAt.getTime() : new Date(right.createdAt).getTime();
     return rightTime - leftTime;
   });
+}
+
+async function listScratchSubmissionMeta(
+  domainId: string,
+  problemIds: any[],
+  query: Record<string, unknown>,
+) {
+  const docs: ScratchSubmissionMeta[] = [];
+  for (const problemId of problemIds) {
+    const rows = await ScratchModel.getProblemSubmissions(domainId, problemId as number, query).limit(100).toArray();
+    for (const row of rows) {
+      if (!docs.some((item) => sameRecordId(item.rid, row.rid))) docs.push(row);
+    }
+  }
+  return docs;
+}
+
+async function listScratchRecordsForProblem(
+  domainId: string,
+  problemIds: any[],
+  uid: number | undefined,
+) {
+  const docs: any[] = [];
+  const addDocs = (rows: any[]) => {
+    for (const row of rows || []) {
+      const rid = recordId(row);
+      if (rid && !docs.some((item) => sameRecordId(recordId(item), rid))) docs.push(row);
+    }
+  };
+  const ownerQuery = uid === undefined ? {} : { uid };
+  for (const problemId of problemIds) {
+    addDocs(await HydroApi.record.list(domainId, { ...ownerQuery, pid: problemId }, { sort: { _id: -1 }, limit: 100 }));
+  }
+  if (!docs.length) {
+    const broadQueries = [
+      { ...ownerQuery, lang: SCRATCH_LANG },
+      { ...ownerQuery, source: 'scratch' },
+    ];
+    for (const query of broadQueries) {
+      addDocs(await HydroApi.record.list(domainId, query, { sort: { _id: -1 }, limit: 300 }));
+    }
+  }
+  return docs.filter((rdoc) => recordBelongsToProblem(rdoc, problemIds));
 }
 
 function escapeHtml(value: string) {
@@ -306,10 +406,12 @@ function buildScratchConfigPatch(
 abstract class ScratchProblemHandler extends Handler {
   pluginConfig!: PluginConfig;
   pdoc: any;
+  routePid?: string | number;
   scratchConfig!: ScratchProblemConfig;
 
   @param('pid', Types.ProblemId)
-  async prepare(domainId: string, pid: number) {
+  async prepare(domainId: string, pid: string | number) {
+    this.routePid = pid;
     this.pdoc = await HydroApi.problem.get(domainId, pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${pid}`);
     this.scratchConfig = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);
@@ -546,6 +648,8 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       source,
       validation,
       maxScore: this.scratchConfig.maxScore,
+      status: STATUS_IGNORED,
+      scored: false,
       previewAvailable: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -622,7 +726,12 @@ abstract class ScratchSubmissionHandler extends Handler {
     if (!this.pdoc) throw new NotFoundError(`Problem ${this.rdoc.pid}`);
     const submission = await ScratchModel.getSubmission(domainId, rid);
     if (submission) {
-      this.submission = submission;
+      this.submission = {
+        ...submission,
+        score: submission.score ?? this.rdoc.score,
+        status: submission.status ?? this.rdoc.status,
+        scored: submission.scored ?? isRecordScored(this.rdoc),
+      };
       return;
     }
     const config = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);
@@ -727,9 +836,12 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
     this.ensureCanScoreSubmission();
     const maxScore = this.submission.maxScore || 100;
     if (!Number.isFinite(score) || score < 0 || score > maxScore) throw new ValidationError('score');
+    const status = scoreToStatus(score, maxScore);
     const scorePatch = {
       score,
       maxScore,
+      status,
+      scored: true,
       manualScoreBy: this.user._id,
       manualScoreAt: new Date(),
       manualComment: comment,
@@ -741,20 +853,33 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       updatedAt: new Date(),
     });
     await HydroApi.judge.end(domainId, this.rdoc._id, {
-      status: scoreToStatus(score, maxScore),
+      status,
       score,
       time: 0,
       memory: 0,
       message: comment || `Manual Scratch score: ${score}/${maxScore}`,
+      case: {
+        id: 0,
+        subtaskId: 0,
+        status,
+        score,
+        time: 0,
+        memory: 0,
+        message: comment || `Manual Scratch score: ${score}/${maxScore}`,
+      },
       judger: this.user._id,
     });
     this.response.body = {
       rid: this.rdoc._id,
       score,
       maxScore,
-      status: scoreToStatus(score, maxScore),
+      status,
+      redirectUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
     };
-    if (!this.request.json) this.response.redirect = this.url('scratch_submission_preview', { rid: this.rdoc._id });
+    if (!this.request.json) this.response.redirect = appendQuery(
+      this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
+      { scored: String(this.rdoc._id) },
+    );
   }
 }
 
@@ -763,17 +888,17 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
     this.ensureScratchEnabled();
     const canManage = userCanManageProblem(this.user, this.pdoc);
     const canReadAll = userCanReadAllScratchRecords(this.user, this.pdoc);
+    const problemIds = getProblemIdCandidates(this.pdoc, this.routePid);
     const query = canReadAll ? {} : { userId: this.user._id };
-    const metaDocs = await ScratchModel.getProblemSubmissions(domainId, this.pdoc.docId, query).limit(100).toArray();
-    const recordQuery = canReadAll ? { pid: this.pdoc.docId } : { pid: this.pdoc.docId, uid: this.user._id };
-    const rdocs = await HydroApi.record.list(domainId, recordQuery, { sort: { _id: -1 }, limit: 100 });
+    const metaDocs = await listScratchSubmissionMeta(domainId, problemIds, query);
+    const rdocs = await listScratchRecordsForProblem(domainId, problemIds, canReadAll ? undefined : this.user._id);
     const fallbackDocs = rdocs
       .filter((rdoc: any) => (rdoc.lang === SCRATCH_LANG || rdoc.source === 'scratch') && !!parseRecordProjectFile(rdoc))
       .map((rdoc: any) => buildSubmissionFromRecord(domainId, this.pdoc, rdoc, this.scratchConfig))
       .filter(Boolean) as ScratchSubmissionMeta[];
     const docs = mergeSubmissionRecords(metaDocs, fallbackDocs);
     if (this.request.json) {
-      this.response.body = { submissions: docs, canManage, canReadAll };
+      this.response.body = { submissions: docs, canManage, canReadAll, problemIds };
       return;
     }
     this.response.template = 'scratch_submissions.html';
@@ -783,6 +908,7 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
       canManage,
       canReadAll,
       canScore: canManage,
+      scoredRid: getQueryValue(this, 'scored') || '',
       editorUrl: this.url('scratch_editor', { pid: this.pdoc.docId }),
       problemUrl: this.url('problem_detail', { pid: this.pdoc.docId }),
       editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
