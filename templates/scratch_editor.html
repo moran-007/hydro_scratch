@@ -40,7 +40,9 @@
           <span>主题色</span>
           <input id="theme-color" type="color" value="#4c97ff">
         </label>
+        {% if not tid %}
         <a href="{{ previewUrl }}" target="_blank" rel="noopener">查看原题</a>
+        {% endif %}
         <a href="{{ submissionsUrl }}">{{ submissionsLabel or '我的提交' }}</a>
         {% if config.allowDownloadTemplate and config.templatePath %}
         <a href="{{ templateUrl }}">下载模板</a>
@@ -522,21 +524,27 @@
 }
 
 .score-modal__actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
   align-items: center;
-  justify-content: center;
-  gap: 12px;
+  gap: 10px;
+  width: 100%;
   margin-top: 22px;
 }
 
 .score-modal__link,
 .score-modal__button {
-  min-width: 116px;
+  min-width: 0;
+  width: 100%;
   padding: 10px 16px;
   border: 0;
   border-radius: 999px;
   font-size: 14px;
   font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
   text-decoration: none;
   cursor: pointer;
 }
@@ -635,6 +643,8 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
   const RETURN_URL = SERVER_RETURN_URL || localReferrerPath() || PROBLEM_URL;
   const RETURN_LIST_URL = SERVER_RETURN_LIST_URL || contextListFromReferrer();
   const TID = '{{ tid }}';
+  const CONTEST_RULE = '{{ contestRule or "" }}';
+  const IS_CONTEST = !!TID && CONTEST_RULE !== 'homework';
   const THEME_KEY = 'hydro-scratch-theme-{{ pdoc.docId }}';
   const PANEL_KEY = 'hydro-scratch-problem-panel-{{ pdoc.docId }}';
   const WIDTH_KEY = 'hydro-scratch-problem-width-{{ pdoc.docId }}';
@@ -1002,7 +1012,41 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
     const numeric = Number(value);
     if (numeric === 1) return 'Accepted';
     if (numeric === 2) return 'Wrong Answer';
+    return 'Submitted';
+    /*
+    return '已提交'; /*
     return '已提交';
+  }
+
+    */
+  }
+
+  function shortHydroStatus(status, passed, waiting) {
+    if (waiting) return '--';
+    const text = String(status || '');
+    if (passed || /accepted/i.test(text)) return 'AC';
+    if (/wrong answer/i.test(text)) return 'WA';
+    if (/time exceeded/i.test(text)) return 'TLE';
+    if (/memory exceeded/i.test(text)) return 'MLE';
+    if (/runtime error/i.test(text)) return 'RE';
+    if (/compile error/i.test(text)) return 'CE';
+    if (/system error/i.test(text)) return 'SE';
+    if (/ignored/i.test(text)) return 'IGN';
+    if (/waiting|running|compiling|fetched/i.test(text)) return '--';
+    return text || 'Submitted';
+    /*
+    return text || '已提交';
+  }
+
+    */
+  }
+
+  function shouldShowNumericScore(isContest, contestRule, hasScore) {
+    if (!hasScore) return false;
+    const rule = String(contestRule || '').toLowerCase();
+    if (!isContest || rule === 'homework') return true;
+    if (rule === 'acm' || rule === 'oi' || rule === 'strictioi' || rule === 'contest') return false;
+    return true;
   }
 
   function getScoreSummary(result, report) {
@@ -1013,12 +1057,30 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
     const passed = report && report.autoJudge && report.autoJudge.result
       ? !!report.autoJudge.result.passed
       : (score !== undefined && score !== null && maxScore !== undefined && maxScore !== null && Number(score) >= Number(maxScore));
+    const contestRule = String((result && result.contestRule) || CONTEST_RULE || '').toLowerCase();
+    const isContest = !!((result && result.contestMode) || IS_CONTEST) && contestRule !== 'homework';
+    const hasScore = score !== undefined && score !== null;
+    const showNumericScore = shouldShowNumericScore(isContest, contestRule, hasScore);
+    const shortStatus = shortHydroStatus(status, passed, waiting);
+    const displayValue = showNumericScore ? score : shortStatus;
+    const displayMax = showNumericScore ? '/ ' + (maxScore || '--') : '';
+    const displayText = showNumericScore ? String(score) + '/' + (maxScore || '--') : shortStatus;
+    const displayStatus = isContest && !showNumericScore && contestRule !== 'acm'
+      ? (passed ? 'Accepted' : 'Submitted; score follows contest rule')
+      : status;
     return {
       waiting: waiting,
       score: score,
       maxScore: maxScore,
       status: status,
       passed: passed,
+      contestRule: contestRule,
+      isContest: isContest,
+      showNumericScore: showNumericScore,
+      displayValue: displayValue,
+      displayMax: displayMax,
+      displayText: displayText,
+      displayStatus: displayStatus,
       recordUrl: result && result.recordUrl,
       problemUrl: (result && (result.problemUrl || result.redirectUrl)) || PROBLEM_URL,
       returnUrl: (result && (result.returnUrl || result.redirectUrl)) || RETURN_URL || PROBLEM_URL,
@@ -1030,8 +1092,8 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
   function showSubmissionScore(result, report) {
     const summary = getScoreSummary(result, report);
     if (scoreCard && scoreValue && scoreStatus) {
-      scoreValue.textContent = (summary.score === undefined || summary.score === null ? '--' : summary.score) + '/' + (summary.maxScore || '--');
-      scoreStatus.textContent = summary.status;
+      scoreValue.textContent = summary.displayText || '--';
+      scoreStatus.textContent = summary.displayStatus || summary.status;
       if (summary.recordUrl && scoreRecordLink) {
         scoreRecordLink.href = summary.recordUrl;
         scoreRecordLink.hidden = false;
@@ -1053,11 +1115,20 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
     const hasScore = summary.score !== undefined && summary.score !== null;
     scoreModalPanel.classList.toggle('is-waiting', summary.waiting || !hasScore);
     scoreModalPanel.classList.toggle('is-wrong', hasScore && !summary.waiting && !summary.passed);
+    scoreModalBadge.textContent = summary.waiting || !hasScore ? '\u2026' : (summary.passed ? '\u2713' : '!');
+    scoreModalTitle.textContent = summary.waiting || !hasScore
+      ? '\u5df2\u63d0\u4ea4\uff0c\u7b49\u5f85\u6d4b\u8bc4'
+      : (summary.passed ? '\u6d4b\u8bc4\u901a\u8fc7' : '\u6d4b\u8bc4\u5b8c\u6210');
+    scoreModalStatus.textContent = summary.displayStatus || summary.status || '\u6d4b\u8bc4\u7ed3\u679c\u5df2\u8fd4\u56de';
+    scoreModalValue.textContent = summary.displayValue === undefined || summary.displayValue === null ? '--' : summary.displayValue;
+    scoreModalMax.textContent = summary.displayMax || '';
+    /*
     scoreModalBadge.textContent = summary.waiting || !hasScore ? '…' : (summary.passed ? '✓' : '!');
     scoreModalTitle.textContent = summary.waiting || !hasScore ? '已提交，等待测评' : (summary.passed ? '测评通过' : '测评完成');
     scoreModalStatus.textContent = summary.status || '测评结果已返回';
     scoreModalValue.textContent = hasScore ? summary.score : '--';
     scoreModalMax.textContent = ' / ' + (summary.maxScore || '--');
+    */
     if (summary.recordUrl) {
       scoreModalRecord.href = summary.recordUrl;
       scoreModalRecord.hidden = false;
@@ -1065,7 +1136,12 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
       scoreModalRecord.hidden = true;
     }
     if (scoreModalProblem) {
-      scoreModalProblem.href = summary.returnUrl || summary.problemUrl || PROBLEM_URL;
+      if (summary.isContest && summary.returnListUrl) {
+        scoreModalProblem.hidden = true;
+      } else {
+        scoreModalProblem.href = summary.returnUrl || summary.problemUrl || PROBLEM_URL;
+        scoreModalProblem.hidden = false;
+      }
     }
     if (scoreModalList) {
       if (summary.returnListUrl) {
@@ -1092,7 +1168,10 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
       const report = await fetchSubmissionReport(result);
       const summary = showSubmissionScore(result, report);
       showScoreModal(summary);
+      setStatus(summary.displayText || (summary.score === undefined || summary.score === null ? 'Waiting' : summary.score + '/' + (summary.maxScore || '--')), '');
+      //
       setStatus(summary.score === undefined || summary.score === null ? '等待测评' : summary.score + '/' + (summary.maxScore || '--'), '');
+      setStatus(summary.displayText || (summary.score === undefined || summary.score === null ? 'Waiting' : summary.score + '/' + (summary.maxScore || '--')), '');
     } catch (error) {
       console.error('Scratch submit failed:', error);
       setStatus('提交失败', 'error');

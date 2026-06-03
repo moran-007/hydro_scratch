@@ -190,21 +190,31 @@ async function syncHydroScoreState(
 }
 
 async function contestReturnInfo(handler: Handler, domainId: string, tid: any) {
-  if (!tid) return { returnListUrl: '', returnListLabel: '' };
+  if (!tid) return { returnListUrl: '', returnListLabel: '', contestRule: '', isContest: false };
   try {
     const tdoc = await HydroApi.contest.get(domainId, tid);
     if (tdoc?.rule === 'homework') {
       return {
         returnListUrl: handler.url('homework_detail', { tid }),
         returnListLabel: '返回作业',
+        contestRule: 'homework',
+        isContest: false,
       };
     }
+    return {
+      returnListUrl: handler.url('contest_problemlist', { tid }),
+      returnListLabel: '返回比赛题目列表',
+      contestRule: String(tdoc?.rule || ''),
+      isContest: true,
+    };
   } catch {
     // Fall back to the contest problem list route below.
   }
   return {
     returnListUrl: handler.url('contest_problemlist', { tid }),
     returnListLabel: '返回比赛题目列表',
+    contestRule: 'contest',
+    isContest: true,
   };
 }
 
@@ -1223,8 +1233,10 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       tid: tid ? String(tid) : undefined,
     });
     const contestReturn = await contestReturnInfo(this, effectiveDomainId, tid);
-    const safeReturnUrl = safeLocalUrl(returnUrl) || problemUrl;
     const safeReturnListUrl = safeLocalUrl(returnListUrl) || contestReturn.returnListUrl;
+    const safeReturnUrl = contestReturn.isContest
+      ? safeReturnListUrl
+      : safeLocalUrl(returnUrl) || problemUrl;
     const previewUrl = this.url('scratch_submission_preview', { rid });
     const historyUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
     const scoreUrl = this.url('scratch_submission_score', { rid });
@@ -1280,6 +1292,8 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       returnUrl: safeReturnUrl,
       returnListUrl: safeReturnListUrl,
       returnListLabel: safeReturnListUrl ? contestReturn.returnListLabel || '' : '',
+      contestRule: contestReturn.contestRule,
+      contestMode: contestReturn.isContest,
       problemUrl,
       previewUrl,
       historyUrl,

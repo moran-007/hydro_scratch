@@ -147,9 +147,11 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
     const trainingId = getFirstQueryValue(this, ['training', 'trainingId', 'trid']);
     let returnListUrl = '';
     let returnListLabel = '';
+    let contestRule = '';
     if (tid) {
       try {
         const tdoc = await HydroApi.contest.get(this.pdoc.domainId, tid);
+        contestRule = String(tdoc?.rule || '');
         if (tdoc?.rule === 'homework') {
           returnListUrl = this.url('homework_detail', { tid });
           returnListLabel = '返回作业';
@@ -160,6 +162,7 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
       } catch {
         returnListUrl = this.url('contest_problemlist', { tid });
         returnListLabel = '返回比赛题目列表';
+        contestRule = 'contest';
       }
     } else if (trainingId) {
       returnListUrl = this.url('training_detail', { tid: trainingId });
@@ -188,6 +191,7 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
       returnUrl: requestedReturnUrl || problemUrl,
       returnListUrl,
       returnListLabel,
+      contestRule,
       canManage,
     };
   }
