@@ -1,0 +1,23 @@
+format: hydro-scratch-problem
+version: 1
+pid: scratch_move_01
+title: 角色移动到指定位置
+hidden: false
+tags:
+  - Scratch
+  - 自动测评
+scratch:
+  enabled: true
+  submitMode: both
+  judgeMode: hybrid
+  maxScore: 100
+  allowDownloadTemplate: true
+  disabledScratchExtensions:
+    - videoSensing
+  limits:
+    maxProjectSizeMB: 20
+    maxUnpackedSizeMB: 80
+    maxAssetSizeMB: 10
+    maxAssetCount: 300
+    maxProjectJsonSizeMB: 10
+  template: template.sb3

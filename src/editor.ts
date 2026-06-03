@@ -121,9 +121,10 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
 }
 
 export class ScratchDraftSaveHandler extends ScratchEditorBaseHandler {
-  async post(domainId: string) {
+  async post() {
     this.ensureEditorEnabled();
     if (!this.user.hasPerm(PERM.PERM_SUBMIT_PROBLEM)) throw new ForbiddenError();
+    const domainId = String(this.pdoc.domainId || this.args.domainId || 'system');
     const file = this.request.files?.project || this.request.files?.file;
     if (!file || file.size === 0) throw new ValidationError('file');
     const originalName = filenameFor(file.originalFilename, `draft-${this.pdoc.docId}.sb3`);
@@ -144,7 +145,13 @@ export class ScratchDraftSaveHandler extends ScratchEditorBaseHandler {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    this.response.body = { draftId, validation };
+    this.response.body = {
+      draftId,
+      originalName,
+      fileSize: meta?.size || file.size,
+      updatedAt: new Date(),
+      validation,
+    };
   }
 
   private async validateProject(filePath: string, originalName: string) {
@@ -158,9 +165,10 @@ export class ScratchDraftSaveHandler extends ScratchEditorBaseHandler {
 }
 
 export class ScratchDraftLoadHandler extends ScratchEditorBaseHandler {
-  async get(domainId: string) {
+  async get() {
     this.ensureEditorEnabled();
     if (!this.user.hasPerm(PERM.PERM_VIEW_PROBLEM)) throw new ForbiddenError();
+    const domainId = String(this.pdoc.domainId || this.args.domainId || 'system');
     const draft = await ScratchModel.getLatestDraft(domainId, this.pdoc.docId, this.user._id);
     if (!draft) {
       this.response.body = { draft: null };
@@ -171,6 +179,8 @@ export class ScratchDraftLoadHandler extends ScratchEditorBaseHandler {
       draft: {
         draftId: draft.draftId,
         fileUrl,
+        originalName: draft.originalName,
+        fileSize: draft.fileSize,
         createdAt: draft.createdAt,
         updatedAt: draft.updatedAt,
         validation: draft.validation,
@@ -180,9 +190,10 @@ export class ScratchDraftLoadHandler extends ScratchEditorBaseHandler {
 }
 
 export class ScratchDraftProjectHandler extends ScratchEditorBaseHandler {
-  async get(domainId: string) {
+  async get() {
     this.ensureEditorEnabled();
     if (!this.user.hasPerm(PERM.PERM_VIEW_PROBLEM)) throw new ForbiddenError();
+    const domainId = String(this.pdoc.domainId || this.args.domainId || 'system');
     const draft = await ScratchModel.getLatestDraft(domainId, this.pdoc.docId, this.user._id);
     if (!draft) throw new NotFoundError('Scratch draft');
     this.response.body = await HydroApi.storage.get(draft.draftPath);

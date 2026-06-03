@@ -85,11 +85,65 @@
         </dl>
       </div>
     </div>
+    {% if submission.autoJudgeResult %}
+    <div class="section side scratch-auto-judge">
+      <div class="section__header">
+        <h1 class="section__title">Auto Judge Reference</h1>
+      </div>
+      <div class="section__body typo">
+        <p>
+          <strong>{{ submission.autoJudgeResult.totalScore }} / {{ submission.autoJudgeResult.maxScore }}</strong>
+          - Passed {{ submission.autoJudgeResult.summary.passedChecks }} / {{ submission.autoJudgeResult.summary.totalChecks }} checks
+          - {{ submission.autoJudgeResult.mode }}
+        </p>
+        <ul class="scratch-auto-judge__list">
+          {% for detail in submission.autoJudgeResult.details %}
+          <li class="{{ 'is-pass' if detail.passed else 'is-fail' }}">
+            <strong>{{ 'PASS' if detail.passed else 'FAIL' }}</strong>
+            {% if detail.category %}<small>[{{ detail.category }}]</small>{% endif %}
+            {{ detail.name }}: {{ detail.score }} / {{ detail.maxScore }}
+            <br>
+            <span>{{ detail.message }}</span>
+            {% if detail.hint %}
+            <br><em>{{ detail.hint }}</em>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% elif submission.autoJudgeError %}
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">Auto Judge Reference</h1>
+      </div>
+      <div class="section__body typo">
+        <p>Automatic judging failed. This submission can still be scored manually.</p>
+        <pre>{{ submission.autoJudgeError }}</pre>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </div>
 <style>
 .scratch-score-shell {
   position: relative;
+}
+.scratch-auto-judge__list {
+  margin-left: 0;
+  list-style: none;
+}
+.scratch-auto-judge__list li {
+  margin: 0 0 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: #fafafa;
+}
+.scratch-auto-judge__list .is-pass {
+  border-left: 3px solid #43a047;
+}
+.scratch-auto-judge__list .is-fail {
+  border-left: 3px solid #e53935;
 }
 .scratch-score-status {
   margin-bottom: 8px;

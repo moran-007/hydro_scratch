@@ -1,29 +1,70 @@
-﻿# Hydro Scratch 插件安装与更新教程
+# Hydro Scratch 插件安装与更新
 
-当前版本：`0.2.11`
+当前版本：`0.6.5`
 
 推荐文件：
 
-- 首次安装：`release/hydro-plugin-scratch-0.2.11.tgz`
-- 已安装后的免依赖更新：`release/hydro-plugin-scratch-update-0.2.11.zip`
-- Linux 服务器也可用：`release/hydro-plugin-scratch-update-0.2.11.tgz`
+- 首次安装：`release/hydro-plugin-scratch-0.6.5.tgz`
+- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.5.zip`
+- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.5.tgz`
 
-## 本次更新 0.2.11
+## 本次更新 0.6.5
 
-- 批改列表改为紧凑布局，移除方法、文件、原生评测状态等冗余列。
-- 批改列表新增题目列，显示题号和题目名称；提交记录使用短 RID 展示并保留原生记录链接。
-- 支持按比赛 / 作业名称查询该比赛下所有 Scratch 提交，不再局限于当前题目。
-- 比赛和作业来源优先显示比赛 / 作业名称。
-- 评分页去掉“递交 / Record”等绕路按钮，改为直接显示“保存分数”。
-- 预览页去掉“递交 / 举报 / 顶部手动评分”等重复或低价值按钮，只保留题目、下载和浮动窗口。
+- 全屏入口替换 Scratch 顶栏原教程位置，不再使用悬浮按钮，占用更少编辑空间。
+- Scratch 内部题目窗口支持拖动，拖动标题栏即可移动到任意可视位置。
+- 原右下角 `⋯` 设置面板收进 Scratch 顶栏 Settings 菜单，包含保存草稿、自动暂存、主题色、查看原题、提交记录和下载模板入口。
+- 最近成绩卡嵌入 Scratch 顶栏 Debug 旁边，提交后由外层测评结果同步更新。
+- 移除语言菜单的 `scrollIntoView` 触发点，继续避免切换语言或打开菜单时页面乱跳。
 
-## 一、首次安装
+- 修复 Scratch GUI 语言菜单切换时触发外层页面滚动/跳页的问题，语言点击会阻止多余事件冒泡，已选语言只在菜单内部就近定位。
+- Scratch 编辑器内部新增右上侧 `全屏` 按钮，可直接进入显示器全屏；浏览器限制 iframe 全屏时，会回退到外层答题工作区全屏。
+- 外层 iframe 增加 `fullscreen` 权限，答题工作区在全屏状态下占满 `100vw x 100vh`，Scratch 编辑区同步拉满。
 
-首次安装需要安装一次生产依赖。以后只要依赖没有变化，就使用“免依赖覆盖更新”。
+- Scratch 内部 `查看题目` 改为打开 iframe 内部题目面板，支持题面图片、表格和常规 HTML 内容。
+- 继续保留 Scratch 工作区纯文本注释作为兜底，图片内容由内部题目面板展示。
+- 题面 HTML 会过滤外部入口和危险属性，并把相对图片地址转换为可加载地址。
+- 右下角 `⋯` 设置工具条支持整体拖动，位置按题目保存在浏览器本地。
+- 隐藏 Scratch/Blockly 右下角缩放放大镜控件，并尝试隐藏 Hydro 页面级浮动搜索/放大按钮，减少遮挡。
+- Scratch GUI 静态资源版本号更新为 `gui.js?v=0.6.5`。
 
-### 方式 A：本机源码目录安装
+## 本次更新 0.6.2
 
-在插件目录执行：
+- 去掉外层题目便签浮层，避免无法关闭或遮挡 Scratch 工作区。
+- Scratch GUI 顶栏 `查看题目` 改为在 Scratch 内部生成/打开工作区注释，题目文本会自动过滤外层入口、提交、查看原题等链接。
+- 右下角设置面板保留为小型 `⋯` 按钮，自动暂存、主题色、查看原题、提交记录都可以明确收起。
+- 最近成绩卡片支持拖动和手动隐藏，减少对积木区域的遮挡。
+- 提交测评后新增居中的成绩弹窗，展示状态、得分和提交记录入口。
+- Scratch GUI 静态资源版本号更新为 `gui.js?v=0.6.2`。
+
+## 本次更新 0.6.1
+
+- 重新优化答题页布局：Scratch 编辑区成为主区域，不再显示外层 Scratch 标题栏。
+- 题目区改为左侧可折叠抽屉，收起后类似窄导航栏，点击即可打开。
+- 题目区支持拖动右侧边缘调整宽度，宽度按题目保存到浏览器本地。
+- 外层重复的提交按钮已删除，提交统一使用 Scratch 内部 `提交测评`。
+- 外层按钮收敛到题目抽屉和一个小型更多菜单，减少占用 Scratch 顶栏和工作区。
+- 题目便签改成 Scratch 区域内部浮层，更接近 Scratch 注释贴纸的使用方式。
+- Scratch GUI 静态资源版本号更新为 `gui.js?v=0.6.1`。
+
+## 本次更新 0.6.0
+
+- 普通 Hydro 题面会自动追加更清晰的入口：`进入 Scratch 答题页面`、`查看我的提交`，教师还能看到提交与编辑入口。
+- Scratch 答题页支持左侧题面收起和展开，右侧 Scratch 编辑区会自动占满剩余空间。
+- 题面支持贴纸模式，可像便签一样浮在编辑区左侧，方便学生边看题边搭积木。
+- Scratch GUI 顶栏新增 `查看题目` 按钮，与 `提交测评` 按钮放在一起。
+- 提交后不再立刻跳回题面，而是在当前答题页读取本次提交报告并展示成绩、状态和测评记录入口。
+- 暂存逻辑增强：进入题目优先恢复当前学生的最近草稿；提交成功后会同步保存当前作品为草稿；自动暂存和手动暂存都会显示状态。
+- 答题页增加主题色选择，可保存到浏览器本地，并会尽量同步到内嵌 Scratch 顶栏。
+- Scratch GUI 静态资源版本号更新为 `gui.js?v=0.6.0`。
+
+## 历史关键更新
+
+- `0.5.2`：将 `scratch-render-fonts` 显式加入生产依赖，修复动态判题依赖缺失。
+- `0.5.1`：修复 `/scratch/problem/import` 在部分 Hydro 版本中的 `domainId` 参数兼容问题。
+- `0.5.0`：新增 Hydro 原生 Scratch 题目包导入导出，支持 `.scratch-problem.zip`。
+- `0.4.0`：新增静态、结构、动态、混合自动判题。
+
+## 首次安装
 
 ```bash
 npm install
@@ -33,182 +74,65 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 
 然后重启 Hydro。
 
-### 方式 B：服务器安装打包文件
+## 服务器安装打包文件
 
-把标准插件包上传到服务器：
+上传标准插件包：
 
 ```bash
-scp release/hydro-plugin-scratch-0.2.11.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.6.5.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
-在服务器上执行：
+在服务器执行：
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.11.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.5.tgz
 ```
 
-默认安装目录：
-
-```text
-~/.hydro/addons/hydro-plugin-scratch
-```
-
-如果你的 Hydro 插件目录不同：
+如果 Hydro 插件目录不是默认路径：
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.2.11.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.5.tgz
 ```
 
-安装完成后重启 Hydro：
+## 覆盖更新
 
-```bash
-pm2 restart hydro
-# 或
-sudo systemctl restart hydrooj
-# 或重启你的 Hydro Docker 容器
-```
-
-## 二、免依赖覆盖更新
-
-适用于已经安装过 `hydro-plugin-scratch`，并且只是更新插件代码、模板、页面文件等内容。
-
-这一步不需要执行 `npm install`。
-
-`hydro-plugin-scratch-update-0.2.11.zip` 和 `hydro-plugin-scratch-update-0.2.11.tgz` 是增量覆盖包，只包含本次需要变更的文件，不包含完整素材库和完整 Scratch GUI 静态资源。
-
-### Windows 覆盖更新
-
-1. 停止 Hydro，或准备覆盖后立即重启。
-2. 备份当前插件目录，例如：
-
-```powershell
-Copy-Item -Recurse -Force `
-  "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch" `
-  "$env:USERPROFILE\\.hydro\\addons\\hydro-plugin-scratch.bak.0.2.11"
-```
-
-3. 解压：
+Windows 可使用：
 
 ```text
-release/hydro-plugin-scratch-update-0.2.11.zip
+release/hydro-plugin-scratch-update-0.6.5.zip
 ```
 
-4. 将解压出来的内容覆盖到：
-
-```text
-%USERPROFILE%\.hydro\addons\hydro-plugin-scratch
-```
-
-5. 重启 Hydro。
-
-### Linux 覆盖更新
-
-假设插件目录是 `~/.hydro/addons/hydro-plugin-scratch`：
+Linux 可使用：
 
 ```bash
-cd ~/.hydro/addons
-cp -a hydro-plugin-scratch "hydro-plugin-scratch.bak.$(date +%Y%m%d%H%M%S)"
-tar -xzf /tmp/hydro-plugin-scratch-update-0.2.11.tgz -C hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.5.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
 ```
 
-然后重启 Hydro：
+然后刷新生产依赖并重启 Hydro：
 
 ```bash
-pm2 restart hydro
-# 或
-sudo systemctl restart hydrooj
-```
-
-## 三、验证安装
-
-重启后检查：
-
-```bash
-hydrooj addon list
-```
-
-然后在 Hydro 中验证：
-
-1. 进入 `/scratch/problem/create`，确认可以创建 Scratch 题目。
-2. 创建后进入普通 Hydro 题面，确认题面图片和附件按 Hydro 原格式正常显示。
-3. 点击题面中的 Scratch 在线编辑器链接，进入在线编程。
-4. 点击素材库，选择角色、造型、背景或声音，确认能加载到舞台。
-5. 点击浮动窗口，确认 Scratch 编辑器可以拖动和调整大小。
-6. 点击保存草稿，刷新后确认草稿可以恢复。
-7. 点击提交，后台进入 `/scratch/problem/:pid/submissions` 查看提交。
-8. 打开 `/scratch/submission/:rid/score`，确认教师可以单独手动评分。
-9. 在比赛或作业中从题面进入 Scratch 编辑器提交，再评分，确认成绩表更新。
-
-## 四、常见问题
-
-### 1. 素材库仍然无法加载
-
-先强制刷新浏览器缓存：
-
-```text
-Ctrl + F5
-```
-
-或者清理浏览器缓存后重新进入编辑器。
-
-确认编辑器加载的是新版本：
-
-```text
-/scratch-editor/index.html
-```
-
-页面中应加载：
-
-```text
-gui.js?v=0.2.11
-```
-
-### 2. 不要重复安装依赖
-
-只要 `package.json` 的 dependencies 没有变化，使用更新包覆盖即可：
-
-```text
-release/hydro-plugin-scratch-update-0.2.11.zip
-```
-
-不要执行：
-
-```bash
-npm install
-yarn install
-```
-
-### 3. 覆盖后页面还是旧的
-
-处理顺序：
-
-1. 重启 Hydro。
-2. 清浏览器缓存或无痕窗口测试。
-3. 确认插件目录中的 `public/scratch-editor/gui.js` 已被覆盖。
-4. 确认 `public/scratch-editor/index.html` 中版本是 `0.2.11`。
-
-## 五、回滚
-
-如果覆盖更新后出现问题，恢复备份目录。
-
-Linux 示例：
-
-```bash
-cd ~/.hydro/addons
-rm -rf hydro-plugin-scratch
-mv hydro-plugin-scratch.bak.YYYYmmddHHMMSS hydro-plugin-scratch
-hydrooj addon add ~/.hydro/addons/hydro-plugin-scratch
+cd ~/.hydro/addons/hydro-plugin-scratch
+yarn --production
 pm2 restart hydro
 ```
 
-如果使用了 `scripts/install-production.sh`，可以用：
+如果不是 pm2 部署，请使用你的实际 Hydro 重启方式。
 
-```bash
-/tmp/rollback-production.sh ~/.hydro/addons/hydro-plugin-scratch.bak.YYYYmmddHHMMSS
-```
+## 验证
 
-回滚后同样需要重启 Hydro。
+1. 打开普通 Hydro 题面，确认能看到 `进入 Scratch 答题页面`。
+2. 进入 Scratch 答题页，确认左侧题面可收起、展开、拖拽调整宽度。
+3. 点击 Scratch 顶栏的 `查看题目`，确认 Scratch 内部题目面板打开，图片能正常显示。
+4. 点击 `保存草稿`，刷新页面后确认能恢复作品。
+5. 修改作品后点击 `提交测评`，确认页面弹出成绩弹窗，并显示本次成绩和测评记录入口。
+6. 重新进入同一题目，确认仍能加载最近草稿。
+7. 检查 `public/scratch-editor/index.html` 中资源版本为 `gui.js?v=0.6.5`。
 
+## 注意事项
 
+- 本版本没有加入图片主题上传，因为它会牵涉服务器存储、权限和安全校验；当前先提供稳定的颜色主题。
+- 如果编辑器配置为外部跨域 URL，父页面可能无法给 Scratch 顶栏注入主题色，但答题页外层主题仍可正常生效。
+- 覆盖更新后请清理浏览器缓存或使用无痕窗口验证，避免旧 `gui.js` 被缓存。
+- 动态判题依赖 `scratch-vm` 和 `scratch-render-fonts`，服务器部署时必须执行 `yarn --production`。

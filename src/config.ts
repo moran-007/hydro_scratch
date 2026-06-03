@@ -1,4 +1,5 @@
 import type { PluginConfig, ScratchProblemConfig } from './types';
+import { defaultJudgeConfig, normalizeJudgeConfig } from './static-judge';
 
 export const DEFAULT_DISABLED_EXTENSIONS = [
   'videoSensing',
@@ -38,6 +39,7 @@ export function defaultProblemConfig(domainId: string, problemId: number, plugin
     maxAssetCount: pluginConfig.maxAssetCount,
     maxProjectJsonSizeMB: pluginConfig.maxProjectJsonSizeMB,
     disabledScratchExtensions: DEFAULT_DISABLED_EXTENSIONS,
+    judgeConfig: defaultJudgeConfig(pluginConfig.maxScore),
     maxScore: pluginConfig.maxScore,
     createdAt: now,
     updatedAt: now,
@@ -51,6 +53,7 @@ export function normalizeProblemConfig(
   input: Partial<ScratchProblemConfig> = {},
 ): ScratchProblemConfig {
   const base = defaultProblemConfig(domainId, problemId, pluginConfig);
+  const maxScore = positiveNumber(input.maxScore, base.maxScore);
   return {
     ...base,
     ...input,
@@ -68,7 +71,8 @@ export function normalizeProblemConfig(
     disabledScratchExtensions: Array.isArray(input.disabledScratchExtensions)
       ? input.disabledScratchExtensions.filter((item) => typeof item === 'string' && item)
       : base.disabledScratchExtensions,
-    maxScore: positiveNumber(input.maxScore, base.maxScore),
+    judgeConfig: normalizeJudgeConfig(input.judgeConfig, maxScore),
+    maxScore,
     createdAt: input.createdAt || base.createdAt,
     updatedAt: new Date(),
   };

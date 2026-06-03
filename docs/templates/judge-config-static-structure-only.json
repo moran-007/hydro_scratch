@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 score 变量",
+      "type": "variable_exists",
+      "variable": "score",
+      "score": 20
+    }
+  ],
+  "structureChecks": [
+    {
+      "name": "绿旗脚本初始化 score",
+      "type": "script_module",
+      "target": "Player",
+      "hat": "event_whenflagclicked",
+      "requiredOpcodes": [
+        "event_whenflagclicked",
+        "data_setvariableto"
+      ],
+      "ordered": true,
+      "score": 40
+    },
+    {
+      "name": "按空格键增加 score",
+      "type": "script_module",
+      "target": "Player",
+      "hat": "event_whenkeypressed",
+      "requiredOpcodes": [
+        "event_whenkeypressed",
+        "data_changevariableby"
+      ],
+      "ordered": true,
+      "score": 40
+    }
+  ],
+  "dynamicChecks": []
+}

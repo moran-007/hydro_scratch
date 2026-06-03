@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Player 角色",
+      "type": "sprite_exists",
+      "sprite": "Player",
+      "score": 10,
+      "hint": "请创建或重命名一个角色为 Player。"
+    }
+  ],
+  "structureChecks": [
+    {
+      "name": "Player 有绿旗脚本",
+      "type": "target_script_exists",
+      "target": "Player",
+      "hat": "event_whenflagclicked",
+      "score": 10,
+      "hint": "请在 Player 角色中添加绿旗脚本。"
+    },
+    {
+      "name": "Player 先定位再移动",
+      "type": "script_sequence",
+      "target": "Player",
+      "hat": "event_whenflagclicked",
+      "sequence": [
+        "event_whenflagclicked",
+        "motion_gotoxy",
+        "motion_movesteps"
+      ],
+      "mode": "ordered_subsequence",
+      "score": 20,
+      "hint": "请先设置位置，再使用移动积木。"
+    },
+    {
+      "name": "Player 初始坐标正确",
+      "type": "block_input_equals",
+      "target": "Player",
+      "hat": "event_whenflagclicked",
+      "opcode": "motion_gotoxy",
+      "inputs": {
+        "X": -150,
+        "Y": 0
+      },
+      "score": 20,
+      "hint": "请把初始位置设为 x=-150, y=0。"
+    }
+  ],
+  "dynamicChecks": [
+    {
+      "name": "Player 最终到达 x=100 y=0",
+      "type": "sprite_position",
+      "target": "Player",
+      "expected": {
+        "x": 100,
+        "y": 0
+      },
+      "tolerance": 5,
+      "score": 40,
+      "steps": [
+        { "action": "green_flag" },
+        { "action": "wait", "ms": 1000 }
+      ],
+      "hint": "运行后 Player 应到达 x=100, y=0 附近。"
+    }
+  ],
+  "dynamicOptions": {
+    "timeoutMs": 5000,
+    "positionTolerance": 5
+  }
+}

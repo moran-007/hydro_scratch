@@ -1,209 +1,258 @@
 {% extends "layout/basic.html" %}
 {% block content %}
 <div class="scratch-workspace" id="scratch-workspace">
-  <div class="workspace-header">
-    <div class="workspace-info">
-      <h2>{{ pdoc.title }}</h2>
-      <span class="badge" id="auto-save-status">Ready</span>
+  <aside class="problem-panel" id="problem-panel">
+    <button class="problem-rail" id="problem-rail" type="button" title="打开题目">
+      <span>题目</span>
+    </button>
+    <div class="problem-body">
+      <div class="problem-head">
+        <strong>题目内容</strong>
+        <div class="problem-head__actions">
+          <button class="link-button" id="save-btn" type="button">保存</button>
+          <button class="link-button" id="problem-collapse-inner" type="button">收起</button>
+        </div>
+      </div>
+      <div class="problem-content" id="problem-content" data-problem-url="{{ problemUrl }}">
+        <div class="problem-loading">正在加载题面...</div>
+      </div>
     </div>
-    <div class="workspace-actions">
-      <a class="rounded button" href="{{ previewUrl }}">{{ _('Problem') }}</a>
-      <a class="rounded button" href="{{ submissionsUrl }}">{{ _(submissionsLabel or 'Submissions') }}</a>
-      {% if config.allowDownloadTemplate and config.templatePath %}
-      <a class="rounded button" href="{{ templateUrl }}">
-        <span class="icon icon-download"></span>
-        {{ _('Download Template') }}
-      </a>
-      {% endif %}
-      <button class="rounded button" id="save-btn" type="button">
-        <span class="icon icon-save"></span>
-        {{ _('Save Draft') }}
-      </button>
-      <button class="rounded primary button" id="submit-btn" type="button">
-        <span class="icon icon-upload"></span>
-        {{ _('Submit') }}
-      </button>
-    </div>
-  </div>
+    <div class="problem-resizer" id="problem-resizer" title="拖动调整题目宽度"></div>
+  </aside>
 
-  <div class="workspace-main">
-    <div class="problem-panel">
-      <div class="panel-header">
-        <h3>{{ _('Problem') }}</h3>
+  <main class="scratch-main">
+    <div class="workspace-tools" id="workspace-tools">
+      <div class="score-card" id="score-card" hidden>
+        <span class="score-card__handle" title="拖动成绩">↕</span>
+        <span>最近成绩</span>
+        <strong id="score-value">--/--</strong>
+        <em id="score-status">未提交</em>
+        <a id="score-record-link" href="" hidden>记录</a>
+        <button class="score-card__close" id="score-hide" type="button" title="隐藏成绩">×</button>
       </div>
-      <div class="panel-content" id="problem-content" data-problem-url="{{ problemUrl }}">
-        <div class="problem-loading">{{ _('Loading problem statement...') }}</div>
-      </div>
-    </div>
-
-    <div class="editor-panel">
-      <div class="panel-header editor-drag-handle">
-        <h3>{{ _('Scratch Editor') }}</h3>
-        <div class="editor-tools">
-          <label class="checkbox-label">
-            <input type="checkbox" id="auto-save-toggle" checked>
-            {{ _('Auto-save') }}
-          </label>
-          <button class="rounded button" id="float-toggle" type="button">{{ _('Floating Window') }}</button>
-        </div>
-      </div>
-      <div class="panel-content">
-        {% if editorUrl %}
-        <div id="scratch-container">
-          <iframe
-            id="scratch-editor-frame"
-            src="{{ editorUrl }}"
-            allow="accelerometer; camera; microphone"
-            allowfullscreen
-            allowtransparency="true"
-          ></iframe>
-        </div>
-        {% else %}
-        <div class="editor-placeholder">
-          <p>The Scratch editor URL is not configured.</p>
-          <p>Please set <code>scratchEditorUrl</code> in the plugin settings and restart Hydro.</p>
-        </div>
+      <button class="tool-button tool-button--icon" id="more-toggle" type="button" title="更多">⋯</button>
+      <div class="more-menu" id="more-menu" hidden>
+        <label class="menu-row">
+          <input type="checkbox" id="auto-save-toggle" checked>
+          自动暂存
+        </label>
+        <label class="menu-row theme-picker">
+          <span>主题色</span>
+          <input id="theme-color" type="color" value="#4c97ff">
+        </label>
+        <a href="{{ previewUrl }}" target="_blank" rel="noopener">查看原题</a>
+        <a href="{{ submissionsUrl }}">{{ submissionsLabel or '我的提交' }}</a>
+        {% if config.allowDownloadTemplate and config.templatePath %}
+        <a href="{{ templateUrl }}">下载模板</a>
         {% endif %}
+        <button class="menu-close" id="more-close" type="button">收起面板</button>
       </div>
     </div>
-  </div>
+
+    <div class="score-modal-backdrop" id="score-modal" hidden>
+      <div class="score-modal" role="dialog" aria-modal="true" aria-labelledby="score-modal-title">
+        <button class="score-modal__close" id="score-modal-close" type="button" aria-label="关闭成绩弹窗">×</button>
+        <div class="score-modal__badge" id="score-modal-badge">✓</div>
+        <h3 id="score-modal-title">提交成功</h3>
+        <p id="score-modal-status">测评结果已返回</p>
+        <div class="score-modal__score">
+          <strong id="score-modal-value">--</strong>
+          <span id="score-modal-max">/ --</span>
+        </div>
+        <div class="score-modal__actions">
+          <a class="score-modal__link" id="score-modal-record" href="" hidden>查看提交记录</a>
+          <button class="score-modal__button" id="score-modal-ok" type="button">继续答题</button>
+        </div>
+      </div>
+    </div>
+
+    {% if editorUrl %}
+    <div id="scratch-container">
+      <iframe
+        id="scratch-editor-frame"
+        src="{{ editorUrl }}"
+        allow="accelerometer; camera; microphone; fullscreen"
+        allowfullscreen
+        allowtransparency="true"
+      ></iframe>
+    </div>
+    {% else %}
+    <div class="editor-placeholder">
+      <p>Scratch 编辑器地址未配置。</p>
+      <p>请在插件设置中配置 <code>scratchEditorUrl</code> 后重启 Hydro。</p>
+    </div>
+    {% endif %}
+  </main>
 </div>
 
 <style>
+:root {
+  --scratch-accent: #4c97ff;
+  --scratch-accent-dark: #3373cc;
+  --problem-width: 360px;
+}
+
 .scratch-workspace {
   display: flex;
-  flex-direction: column;
-  height: calc(100vh - 120px);
-  min-height: 640px;
-  background: #f5f7fb;
+  width: 100vw;
+  height: calc(100vh - 56px);
+  min-height: 560px;
+  margin-right: calc(50% - 50vw);
+  margin-left: calc(50% - 50vw);
+  overflow: hidden;
+  background: #eef5ff;
+  border-top: 1px solid #dbe7f7;
 }
 
-.workspace-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 20px;
-  background: #fff;
-  border-bottom: 1px solid #d9dee8;
-}
-
-.workspace-info,
-.workspace-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.workspace-info h2 {
+.scratch-workspace:fullscreen,
+.scratch-workspace:-webkit-full-screen,
+.scratch-workspace.is-browser-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
   margin: 0;
-  overflow: hidden;
-  color: #222;
-  font-size: 18px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  border: 0;
 }
 
-.badge {
-  flex: 0 0 auto;
-  padding: 4px 10px;
-  border-radius: 12px;
-  background: #e8f5e9;
-  color: #2e7d32;
-  font-size: 12px;
+.scratch-workspace:fullscreen .scratch-main,
+.scratch-workspace:fullscreen #scratch-container,
+.scratch-workspace:fullscreen #scratch-editor-frame,
+.scratch-workspace:-webkit-full-screen .scratch-main,
+.scratch-workspace:-webkit-full-screen #scratch-container,
+.scratch-workspace:-webkit-full-screen #scratch-editor-frame,
+.scratch-workspace.is-browser-fullscreen .scratch-main,
+.scratch-workspace.is-browser-fullscreen #scratch-container,
+.scratch-workspace.is-browser-fullscreen #scratch-editor-frame {
+  height: 100vh;
 }
 
-.badge.saving {
-  background: #fff3e0;
-  color: #ef6c00;
-}
-
-.badge.error {
-  background: #ffebee;
-  color: #c62828;
-}
-
-.workspace-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
+.scratch-workspace [hidden] {
+  display: none !important;
 }
 
 .problem-panel {
+  position: relative;
   display: flex;
-  flex: 0 0 34%;
-  flex-direction: column;
-  min-width: 300px;
+  flex: 0 0 var(--problem-width);
+  width: var(--problem-width);
+  min-width: 280px;
+  max-width: 58vw;
   background: #fff;
-  border-right: 1px solid #d9dee8;
+  border-right: 1px solid #d8e3f4;
+  box-shadow: 6px 0 20px rgba(39, 78, 132, .08);
 }
 
-.editor-panel {
+.problem-body {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-width: 0;
 }
 
-.panel-header {
+.problem-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
   min-height: 42px;
-  padding: 9px 16px;
-  background: #fbfcff;
-  border-bottom: 1px solid #d9dee8;
+  padding: 8px 14px;
+  color: #2f3b52;
+  background: #f8fbff;
+  border-bottom: 1px solid #d8e3f4;
 }
 
-.panel-header h3 {
-  margin: 0;
-  color: #555;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.checkbox-label {
+.problem-head__actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #555;
-  font-size: 13px;
-  cursor: pointer;
+  gap: 14px;
 }
 
-.editor-tools {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.panel-content {
+.problem-content {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  padding: 24px 26px 36px;
+  color: #1f2937;
+  font-size: 15px;
+  line-height: 1.75;
 }
 
-#problem-content {
-  padding: 20px;
-  font-size: 14px;
-  line-height: 1.65;
+.problem-content img {
+  max-width: 100%;
+  height: auto;
 }
 
 .problem-loading,
 .problem-error {
   padding: 20px;
-  color: #666;
+  color: #667085;
 }
 
 .problem-error {
   color: #c62828;
 }
 
-#problem-content img {
-  max-width: 100%;
-  height: auto;
+.problem-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  z-index: 12;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.problem-resizer::after {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 2px;
+  height: 48px;
+  border-radius: 2px;
+  background: #bfd2ef;
+  content: "";
+  transform: translateY(-50%);
+}
+
+.problem-rail {
+  display: none;
+  width: 44px;
+  height: 100%;
+  border: 0;
+  color: #31547d;
+  background: linear-gradient(180deg, #f7fbff, #edf5ff);
+  cursor: pointer;
+}
+
+.problem-rail span {
+  writing-mode: vertical-rl;
+  letter-spacing: 4px;
+  font-weight: 700;
+}
+
+.scratch-workspace.is-problem-collapsed .problem-panel {
+  flex-basis: 44px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+}
+
+.scratch-workspace.is-problem-collapsed .problem-body,
+.scratch-workspace.is-problem-collapsed .problem-resizer {
+  display: none;
+}
+
+.scratch-workspace.is-problem-collapsed .problem-rail {
+  display: block;
+}
+
+.scratch-main {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  background: #fff;
 }
 
 #scratch-container,
@@ -218,63 +267,348 @@
   background: #fff;
 }
 
-.editor-panel.is-floating {
-  position: fixed;
-  top: 72px;
-  left: 8vw;
-  z-index: 2000;
-  width: 84vw;
-  height: 78vh;
-  min-width: 520px;
-  min-height: 360px;
-  overflow: hidden;
-  resize: both;
-  background: #fff;
-  border: 1px solid #b9c4d6;
-  border-radius: 8px;
-  box-shadow: 0 18px 48px rgba(28, 38, 56, .24);
-}
-
-.editor-panel.is-floating .editor-drag-handle {
-  cursor: move;
+.workspace-tools {
+  display: none !important;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 28px);
+  padding: 6px;
+  border: 1px solid rgba(190, 210, 238, .78);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .92);
+  box-shadow: 0 10px 28px rgba(41, 70, 111, .13);
+  backdrop-filter: blur(10px);
+  cursor: grab;
   user-select: none;
 }
 
-.editor-panel.is-dragging iframe {
-  pointer-events: none;
+.workspace-tools.is-dragged {
+  right: auto;
+  bottom: auto;
+}
+
+.workspace-tools.is-dragging {
+  cursor: grabbing;
+}
+
+.workspace-tools .more-menu,
+.workspace-tools a,
+.workspace-tools button,
+.workspace-tools input,
+.workspace-tools label {
+  cursor: auto;
+}
+
+.tool-button {
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #31547d;
+  background: #eef5ff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tool-button.is-saving,
+.link-button.is-saving {
+  color: #a76200;
+}
+
+.tool-button.is-error,
+.link-button.is-error {
+  color: #c62828;
+}
+
+.tool-button:hover {
+  background: #dfeeff;
+}
+
+.tool-button--icon {
+  width: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.score-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border-radius: 999px;
+  background: #f3f8ff;
+  color: #5a6b82;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.score-card__handle {
+  color: #8aa2c0;
+  font-weight: 700;
+}
+
+.score-card strong {
+  color: var(--scratch-accent-dark);
+  font-size: 14px;
+}
+
+.score-card em {
+  color: #31547d;
+  font-style: normal;
+}
+
+.score-card__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 999px;
+  color: #5a6b82;
+  background: transparent;
+  cursor: pointer;
+}
+
+.score-card__close:hover {
+  background: #e0ecfb;
+}
+
+.more-menu {
+  position: absolute;
+  bottom: 46px;
+  right: 0;
+  display: grid;
+  min-width: 170px;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d8e3f4;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(39, 78, 132, .18);
+  cursor: default;
+}
+
+.more-menu a,
+.menu-row,
+.menu-close {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #31547d;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.menu-close {
+  width: 100%;
+  padding: 7px 0 0;
+  border: 0;
+  border-top: 1px solid #edf2fa;
+  background: transparent;
+  cursor: pointer;
+}
+
+.theme-picker input {
+  width: 34px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.score-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(31, 47, 75, .24);
+  backdrop-filter: blur(4px);
+}
+
+.score-modal {
+  position: relative;
+  width: min(420px, calc(100vw - 48px));
+  padding: 30px 30px 26px;
+  border: 1px solid rgba(216, 227, 244, .95);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fff, #f7fbff);
+  box-shadow: 0 26px 70px rgba(32, 62, 108, .28);
+  text-align: center;
+}
+
+.score-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  color: #5a6b82;
+  background: #eef5ff;
+  cursor: pointer;
+}
+
+.score-modal__badge {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 14px;
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #16c784, #0fbd8c);
+  box-shadow: 0 12px 28px rgba(15, 189, 140, .28);
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.score-modal.is-wrong .score-modal__badge {
+  background: linear-gradient(135deg, #ff8b5f, #ff5f57);
+  box-shadow: 0 12px 28px rgba(255, 95, 87, .25);
+}
+
+.score-modal.is-waiting .score-modal__badge {
+  background: linear-gradient(135deg, #4c97ff, #7a5cff);
+  box-shadow: 0 12px 28px rgba(76, 151, 255, .25);
+}
+
+.score-modal h3 {
+  margin: 0;
+  color: #1f2937;
+  font-size: 24px;
+}
+
+.score-modal p {
+  margin: 8px 0 18px;
+  color: #5a6b82;
+}
+
+.score-modal__score {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 150px;
+  padding: 12px 24px;
+  border-radius: 18px;
+  color: var(--scratch-accent-dark);
+  background: #eef5ff;
+}
+
+.score-modal__score strong {
+  font-size: 42px;
+  line-height: 1;
+}
+
+.score-modal__score span {
+  margin-left: 4px;
+  color: #5a6b82;
+  font-size: 17px;
+}
+
+.score-modal__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.score-modal__link,
+.score-modal__button {
+  min-width: 116px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.score-modal__link {
+  color: #31547d;
+  background: #eef5ff;
+}
+
+.score-modal__button {
+  color: #fff;
+  background: linear-gradient(135deg, var(--scratch-accent), var(--scratch-accent-dark));
+}
+
+body.scratch-editor-page .float-search,
+body.scratch-editor-page .floating-search,
+body.scratch-editor-page .search-float,
+body.scratch-editor-page .search-button,
+body.scratch-editor-page .zoom-button,
+body.scratch-editor-page .zoom-float,
+body.scratch-editor-page [class*="float"][class*="search"],
+body.scratch-editor-page [class*="fixed"][class*="search"],
+body.scratch-editor-page [class*="zoom"][class*="button"] {
+  display: none !important;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--scratch-accent-dark);
+  font-size: 13px;
+  cursor: pointer;
 }
 
 .editor-placeholder {
-  padding: 24px;
-  color: #666;
+  padding: 28px;
+  color: #667085;
   line-height: 1.7;
 }
 
-@media (max-width: 1024px) {
+.scratch-workspace.is-resizing iframe {
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
   .scratch-workspace {
-    height: auto;
-  }
-
-  .workspace-header,
-  .workspace-main {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .workspace-actions {
-    flex-wrap: wrap;
+    height: calc(100vh - 48px);
   }
 
   .problem-panel {
-    flex: 0 0 auto;
-    min-width: 0;
-    max-height: 40vh;
-    border-right: 0;
-    border-bottom: 1px solid #d9dee8;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(86vw, var(--problem-width));
+    box-shadow: 12px 0 30px rgba(39, 78, 132, .18);
   }
 
-  .editor-panel {
-    min-height: 70vh;
+  .scratch-workspace.is-problem-collapsed .problem-panel {
+    position: relative;
+    z-index: 1;
+  }
+
+  .workspace-tools {
+    right: 10px;
+    bottom: 10px;
+    left: auto;
+    border-radius: 16px;
+  }
+
+  .tool-button {
+    flex: 0 0 auto;
   }
 }
 </style>
@@ -290,31 +624,75 @@
   const SUBMIT_URL = '{{ submitUrl }}';
   const PROBLEM_DESCRIPTION_URL = '{{ problemDescriptionUrl }}';
   const PROBLEM_URL = '{{ problemUrl }}';
+  const PREVIEW_URL = '{{ previewUrl }}';
+  const SUBMISSIONS_URL = '{{ submissionsUrl }}';
+  const TEMPLATE_URL = '{{ templateUrl }}';
   const TID = '{{ tid }}';
+  const THEME_KEY = 'hydro-scratch-theme-{{ pdoc.docId }}';
+  const PANEL_KEY = 'hydro-scratch-problem-panel-{{ pdoc.docId }}';
+  const WIDTH_KEY = 'hydro-scratch-problem-width-{{ pdoc.docId }}';
+  const TOOLS_POS_KEY = 'hydro-scratch-tools-pos-{{ pdoc.docId }}';
 
+  const root = document.getElementById('scratch-workspace');
   const frame = document.getElementById('scratch-editor-frame');
-  const status = document.getElementById('auto-save-status');
   const saveBtn = document.getElementById('save-btn');
-  const submitBtn = document.getElementById('submit-btn');
   const autoSaveToggle = document.getElementById('auto-save-toggle');
   const problemContent = document.getElementById('problem-content');
-  const editorPanel = document.querySelector('.editor-panel');
-  const dragHandle = document.querySelector('.editor-drag-handle');
-  const floatToggle = document.getElementById('float-toggle');
+  const problemPanel = document.getElementById('problem-panel');
+  const problemRail = document.getElementById('problem-rail');
+  const problemToggle = document.getElementById('problem-toggle');
+  const problemCollapseInner = document.getElementById('problem-collapse-inner');
+  const problemResizer = document.getElementById('problem-resizer');
+  const themeColor = document.getElementById('theme-color');
+  const toolsDock = document.getElementById('workspace-tools');
+  const moreToggle = document.getElementById('more-toggle');
+  const moreClose = document.getElementById('more-close');
+  const moreMenu = document.getElementById('more-menu');
+  const scoreCard = document.getElementById('score-card');
+  const scoreValue = document.getElementById('score-value');
+  const scoreStatus = document.getElementById('score-status');
+  const scoreRecordLink = document.getElementById('score-record-link');
+  const scoreHide = document.getElementById('score-hide');
+  const scoreModal = document.getElementById('score-modal');
+  const scoreModalPanel = scoreModal ? scoreModal.querySelector('.score-modal') : null;
+  const scoreModalClose = document.getElementById('score-modal-close');
+  const scoreModalOk = document.getElementById('score-modal-ok');
+  const scoreModalBadge = document.getElementById('score-modal-badge');
+  const scoreModalTitle = document.getElementById('score-modal-title');
+  const scoreModalStatus = document.getElementById('score-modal-status');
+  const scoreModalValue = document.getElementById('score-modal-value');
+  const scoreModalMax = document.getElementById('score-modal-max');
+  const scoreModalRecord = document.getElementById('score-modal-record');
   const pendingExports = new Map();
   let initialProjectLoaded = false;
-  let floating = false;
-  let dragging = null;
+  let resizing = null;
+  let toolsDragging = null;
+  let problemStatementText = '';
+  let problemStatementHtml = '';
+  let pendingProblemCommentOpen = false;
+  let lastScoreSummary = null;
+  let suppressMoreToggleClick = false;
+  let busy = false;
 
   function targetOrigin() {
     return EDITOR_ORIGIN || window.location.origin;
   }
 
   function setStatus(message, state) {
-    if (!status) return;
-    status.textContent = message;
-    status.classList.toggle('saving', state === 'saving');
-    status.classList.toggle('error', state === 'error');
+    if (!saveBtn) return;
+    saveBtn.textContent = message;
+    saveBtn.classList.toggle('is-saving', state === 'saving');
+    saveBtn.classList.toggle('is-error', state === 'error');
+    if (!state) {
+      window.setTimeout(function() {
+        if (!busy && saveBtn) saveBtn.textContent = '保存';
+      }, 2200);
+    }
+  }
+
+  function setBusy(next) {
+    busy = next;
+    if (saveBtn) saveBtn.disabled = next;
   }
 
   function contentToBlob(content) {
@@ -328,8 +706,38 @@
   }
 
   function postToEditor(message) {
-    if (!frame || !frame.contentWindow) throw new Error('Scratch editor is not ready.');
+    if (!frame || !frame.contentWindow) throw new Error('Scratch 编辑器还没有准备好。');
     frame.contentWindow.postMessage(message, targetOrigin());
+  }
+
+  function postToEditorSafe(message) {
+    try {
+      postToEditor(message);
+    } catch (error) {
+      // The editor may still be booting; load handlers resend state.
+    }
+  }
+
+  function sendSettingsToEditor() {
+    postToEditorSafe({
+      type: 'SCRATCH_OJ_SETTINGS_UPDATE',
+      settings: {
+        autoSave: autoSaveToggle ? !!autoSaveToggle.checked : true,
+        theme: themeColor ? themeColor.value : '#4c97ff',
+        canDownloadTemplate: !!TEMPLATE_URL,
+        previewUrl: PREVIEW_URL,
+        submissionsUrl: SUBMISSIONS_URL,
+        templateUrl: TEMPLATE_URL
+      }
+    });
+  }
+
+  function sendScoreToEditor(summary) {
+    lastScoreSummary = summary || null;
+    postToEditorSafe({
+      type: 'SCRATCH_OJ_SCORE_UPDATE',
+      summary: lastScoreSummary
+    });
   }
 
   function requestProjectExport(operation) {
@@ -337,7 +745,7 @@
       const requestId = operation + '-' + Date.now() + '-' + Math.random().toString(16).slice(2);
       const timer = window.setTimeout(function() {
         pendingExports.delete(requestId);
-        reject(new Error('Scratch editor did not return a project file in time.'));
+        reject(new Error('Scratch 编辑器未及时返回项目文件。'));
       }, 30000);
       pendingExports.set(requestId, { resolve, reject, timer });
       postToEditor({
@@ -354,36 +762,16 @@
     return response.arrayBuffer();
   }
 
-  async function loadProblemStatement() {
-    if (!problemContent || !PROBLEM_DESCRIPTION_URL) return;
-    try {
-      const response = await fetch(PROBLEM_DESCRIPTION_URL, {
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { Accept: 'application/json, text/html;q=0.9' }
-      });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
-      const text = await response.text();
-      let html = text;
-      try {
-        const payload = JSON.parse(text);
-        html = payload.fragments && payload.fragments[0] && payload.fragments[0].html
-          ? payload.fragments[0].html
-          : text;
-      } catch (error) {
-        html = text;
+  function normalizeProblemAssetUrls(container) {
+    if (!container || !PROBLEM_URL) return;
+    container.querySelectorAll('img').forEach(function(img) {
+      if (!img.getAttribute('src')) {
+        const lazySource = img.getAttribute('data-src') || img.getAttribute('data-original');
+        if (lazySource) img.setAttribute('src', lazySource);
       }
-      problemContent.innerHTML = html;
-    } catch (error) {
-      console.error('Problem statement load failed:', error);
-      problemContent.innerHTML = '<div class="problem-error">题面加载失败，请点击上方 Problem 查看 Hydro 原题面。</div>';
-    }
-  }
-
-  function normalizeProblemAssetUrls() {
-    if (!problemContent || !PROBLEM_URL) return;
-    problemContent.querySelectorAll('[src], [href]').forEach(function(node) {
-      const attr = node.hasAttribute('src') ? 'src' : 'href';
+    });
+    container.querySelectorAll('[src], [href], [poster]').forEach(function(node) {
+      const attr = node.hasAttribute('src') ? 'src' : (node.hasAttribute('href') ? 'href' : 'poster');
       const value = node.getAttribute(attr);
       if (!value || /^(?:[a-z]+:|#|\/)/i.test(value)) return;
       try {
@@ -392,6 +780,60 @@
         // Keep Hydro's original value if URL normalization fails.
       }
     });
+  }
+
+  function createProblemStatementFragment(html) {
+    const container = document.createElement('div');
+    container.innerHTML = html || '';
+    container.querySelectorAll('script, style, noscript, iframe, form, input, select, textarea, button').forEach(function(node) {
+      node.remove();
+    });
+    container.querySelectorAll('a').forEach(function(node) {
+      const text = (node.textContent || '').trim();
+      if (/进入编辑器|编辑器|提交|测评|查看原题|我的提交|下载模板|Review Submissions/i.test(text)) {
+        node.remove();
+      }
+    });
+    container.querySelectorAll('*').forEach(function(node) {
+      Array.prototype.slice.call(node.attributes || []).forEach(function(attr) {
+        const name = attr.name.toLowerCase();
+        const value = attr.value || '';
+        if (name.indexOf('on') === 0 || /^javascript:/i.test(value)) node.removeAttribute(attr.name);
+      });
+    });
+    normalizeProblemAssetUrls(container);
+    return container;
+  }
+
+  function problemTextFromHtml(html) {
+    const container = createProblemStatementFragment(html);
+    return (container.innerText || container.textContent || '')
+      .replace(/\r/g, '')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+      .slice(0, 4000);
+  }
+
+  function problemInnerHtmlFromHtml(html) {
+    const container = createProblemStatementFragment(html);
+    return container.innerHTML.trim();
+  }
+
+  function sendProblemCommentToEditor(open) {
+    if (open) pendingProblemCommentOpen = true;
+    if (!problemStatementText && !problemStatementHtml) return;
+    try {
+      postToEditor({
+        type: 'SCRATCH_OJ_SET_PROBLEM_COMMENT',
+        text: problemStatementText,
+        html: problemStatementHtml,
+        open: !!(open || pendingProblemCommentOpen)
+      });
+      pendingProblemCommentOpen = false;
+    } catch (error) {
+      // The editor may still be booting; the next load/project event will resend it.
+    }
   }
 
   async function loadProblemStatementSafe() {
@@ -406,10 +848,17 @@
       const payload = await response.json();
       if (!payload || !payload.html) throw new Error('Missing statement html');
       problemContent.innerHTML = payload.html;
-      normalizeProblemAssetUrls();
+      normalizeProblemAssetUrls(problemContent);
+      problemStatementText = problemTextFromHtml(payload.html);
+      problemStatementHtml = problemInnerHtmlFromHtml(payload.html);
+      sendProblemCommentToEditor(pendingProblemCommentOpen);
     } catch (error) {
       console.error('Problem statement load failed:', error);
-      problemContent.innerHTML = '<div class="problem-error">Problem statement failed to load. Please click the Problem button above to view the original Hydro page.</div>';
+      const html = '<div class="problem-error">题面加载失败，请在更多菜单中打开原题。</div>';
+      problemContent.innerHTML = html;
+      problemStatementText = '题面加载失败，请打开左侧题目区或查看原题。';
+      problemStatementHtml = html;
+      sendProblemCommentToEditor(pendingProblemCommentOpen);
     }
   }
 
@@ -423,32 +872,39 @@
     });
   }
 
+  function formatDateTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return date.toLocaleString('zh-CN', { hour12: false });
+  }
+
   async function loadInitialProject() {
     if (initialProjectLoaded) return;
     initialProjectLoaded = true;
     try {
-      setStatus('Checking draft...', 'saving');
+      setStatus('检查暂存...', 'saving');
       const response = await fetch(LOAD_DRAFT_URL, { credentials: 'same-origin', cache: 'no-store' });
       const payload = response.ok ? await response.json() : { draft: null };
       if (payload.draft && DRAFT_PROJECT_URL) {
         await loadProject(DRAFT_PROJECT_URL, payload.draft.originalName || 'draft.sb3');
-        setStatus('Draft loaded.', '');
+        const timeText = formatDateTime(payload.draft.updatedAt);
+        setStatus(timeText ? '已恢复 ' + timeText : '已恢复草稿', '');
         return;
       }
       if (TEMPLATE_PROJECT_URL) {
         await loadProject(TEMPLATE_PROJECT_URL, 'template.sb3');
-        setStatus('Template loaded.', '');
+        setStatus('模板已加载', '');
         return;
       }
-      setStatus('Ready.', '');
+      setStatus('保存', '');
     } catch (error) {
       console.error('Scratch initial load failed:', error);
-      setStatus('Initial project failed to load. You can still edit a new project.', 'error');
+      setStatus('加载失败', 'error');
     }
   }
 
-  async function uploadProject(url, formField, source) {
-    const project = await requestProjectExport(source || 'save');
+  async function postProject(url, formField, source, project) {
     const blob = contentToBlob(project.content);
     const form = new FormData();
     form.append(formField, blob, project.filename || 'project.sb3');
@@ -463,26 +919,288 @@
     return response.json();
   }
 
-  async function saveDraft() {
+  async function saveDraftWithProject(project, silent) {
+    const result = await postProject(SAVE_DRAFT_URL, 'project', 'save', project);
+    if (!silent) {
+      const timeText = formatDateTime(result.updatedAt);
+      setStatus(timeText ? '已保存 ' + timeText : '已保存', '');
+    }
+    return result;
+  }
+
+  async function saveDraft(silent) {
+    if (busy) return;
     try {
-      setStatus('Saving draft...', 'saving');
-      await uploadProject(SAVE_DRAFT_URL, 'project', 'save');
-      setStatus('Draft saved.', '');
+      if (!silent) setBusy(true);
+      if (!silent) setStatus('保存中...', 'saving');
+      const project = await requestProjectExport('save');
+      await saveDraftWithProject(project, !!silent);
+      if (silent) setStatus('已自动暂存', '');
     } catch (error) {
       console.error('Scratch draft save failed:', error);
-      setStatus('Draft save failed.', 'error');
+      if (!silent) setStatus('保存失败', 'error');
+    } finally {
+      if (!silent) setBusy(false);
     }
   }
 
-  async function submitProject() {
+  async function fetchSubmissionReport(result) {
+    if (!result || !result.reportUrl) return null;
     try {
-      setStatus('Submitting...', 'saving');
-      const result = await uploadProject(SUBMIT_URL, 'file', 'submit');
-      window.location.href = (result && (result.redirectUrl || result.problemUrl || result.previewUrl)) || PROBLEM_URL;
+      const response = await fetch(result.reportUrl, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return await response.json();
+    } catch (error) {
+      console.error('Scratch score report load failed:', error);
+      return null;
+    }
+  }
+
+  function statusLabel(value, result, report) {
+    if (result && typeof result.status === 'string') return result.status;
+    if (report && report.autoJudge && report.autoJudge.result) {
+      return report.autoJudge.result.passed ? 'Accepted' : 'Wrong Answer';
+    }
+    const numeric = Number(value);
+    if (numeric === 1) return 'Accepted';
+    if (numeric === 2) return 'Wrong Answer';
+    return '已提交';
+  }
+
+  function getScoreSummary(result, report) {
+    const waiting = result && result.status === 'Waiting' && (result.score === undefined || result.score === null);
+    const score = waiting ? undefined : (report && report.score !== undefined ? report.score : result.score);
+    const maxScore = report && report.maxScore !== undefined ? report.maxScore : result.maxScore;
+    const status = statusLabel(report && report.status, result, report);
+    const passed = report && report.autoJudge && report.autoJudge.result
+      ? !!report.autoJudge.result.passed
+      : (score !== undefined && score !== null && maxScore !== undefined && maxScore !== null && Number(score) >= Number(maxScore));
+    return {
+      waiting: waiting,
+      score: score,
+      maxScore: maxScore,
+      status: status,
+      passed: passed,
+      recordUrl: result && result.recordUrl
+    };
+  }
+
+  function showSubmissionScore(result, report) {
+    const summary = getScoreSummary(result, report);
+    if (scoreCard && scoreValue && scoreStatus) {
+      scoreValue.textContent = (summary.score === undefined || summary.score === null ? '--' : summary.score) + '/' + (summary.maxScore || '--');
+      scoreStatus.textContent = summary.status;
+      if (summary.recordUrl && scoreRecordLink) {
+        scoreRecordLink.href = summary.recordUrl;
+        scoreRecordLink.hidden = false;
+      } else if (scoreRecordLink) {
+        scoreRecordLink.hidden = true;
+      }
+      scoreCard.hidden = true;
+    }
+    sendScoreToEditor(summary);
+    return summary;
+  }
+
+  function closeScoreModal() {
+    if (scoreModal) scoreModal.hidden = true;
+  }
+
+  function showScoreModal(summary) {
+    if (!scoreModal || !summary) return;
+    const hasScore = summary.score !== undefined && summary.score !== null;
+    scoreModalPanel.classList.toggle('is-waiting', summary.waiting || !hasScore);
+    scoreModalPanel.classList.toggle('is-wrong', hasScore && !summary.waiting && !summary.passed);
+    scoreModalBadge.textContent = summary.waiting || !hasScore ? '…' : (summary.passed ? '✓' : '!');
+    scoreModalTitle.textContent = summary.waiting || !hasScore ? '已提交，等待测评' : (summary.passed ? '测评通过' : '测评完成');
+    scoreModalStatus.textContent = summary.status || '测评结果已返回';
+    scoreModalValue.textContent = hasScore ? summary.score : '--';
+    scoreModalMax.textContent = ' / ' + (summary.maxScore || '--');
+    if (summary.recordUrl) {
+      scoreModalRecord.href = summary.recordUrl;
+      scoreModalRecord.hidden = false;
+    } else {
+      scoreModalRecord.hidden = true;
+    }
+    scoreModal.hidden = false;
+  }
+
+  async function submitProject() {
+    if (busy) return;
+    try {
+      setBusy(true);
+      setStatus('提交中...', 'saving');
+      const project = await requestProjectExport('submit');
+      const result = await postProject(SUBMIT_URL, 'file', 'submit', project);
+      saveDraftWithProject(project, true).catch(function(error) {
+        console.warn('Draft sync after submit failed:', error);
+      });
+      const report = await fetchSubmissionReport(result);
+      const summary = showSubmissionScore(result, report);
+      showScoreModal(summary);
+      setStatus(summary.score === undefined || summary.score === null ? '等待测评' : summary.score + '/' + (summary.maxScore || '--'), '');
     } catch (error) {
       console.error('Scratch submit failed:', error);
-      setStatus('Submit failed.', 'error');
+      setStatus('提交失败', 'error');
+    } finally {
+      setBusy(false);
     }
+  }
+
+  function setProblemCollapsed(next) {
+    if (!root) return;
+    root.classList.toggle('is-problem-collapsed', next);
+    if (problemToggle) problemToggle.textContent = next ? '打开题目' : '收起题目';
+    window.localStorage.setItem(PANEL_KEY, next ? 'collapsed' : 'open');
+  }
+
+  function showProblemFromEditor() {
+    sendProblemCommentToEditor(true);
+  }
+
+  function clampProblemWidth(value) {
+    const max = Math.max(320, Math.round(window.innerWidth * 0.58));
+    return Math.min(max, Math.max(280, Math.round(value)));
+  }
+
+  function setProblemWidth(value) {
+    const width = clampProblemWidth(value);
+    document.documentElement.style.setProperty('--problem-width', width + 'px');
+    window.localStorage.setItem(WIDTH_KEY, String(width));
+  }
+
+  function clampToolsPosition(left, top) {
+    if (!toolsDock || !toolsDock.parentElement) return { left: 16, top: 16 };
+    const parentRect = toolsDock.parentElement.getBoundingClientRect();
+    const dockRect = toolsDock.getBoundingClientRect();
+    return {
+      left: Math.max(8, Math.min(parentRect.width - dockRect.width - 8, Math.round(left))),
+      top: Math.max(8, Math.min(parentRect.height - dockRect.height - 8, Math.round(top)))
+    };
+  }
+
+  function setToolsPosition(left, top) {
+    if (!toolsDock) return;
+    const next = clampToolsPosition(left, top);
+    toolsDock.style.left = next.left + 'px';
+    toolsDock.style.top = next.top + 'px';
+    toolsDock.style.right = 'auto';
+    toolsDock.style.bottom = 'auto';
+    toolsDock.classList.add('is-dragged');
+    window.localStorage.setItem(TOOLS_POS_KEY, JSON.stringify(next));
+  }
+
+  function restoreToolsPosition() {
+    if (!toolsDock) return;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(TOOLS_POS_KEY) || 'null');
+      if (saved && Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+        window.setTimeout(function() { setToolsPosition(saved.left, saved.top); }, 0);
+      }
+    } catch (error) {
+      window.localStorage.removeItem(TOOLS_POS_KEY);
+    }
+  }
+
+  function normalizeAccent(value) {
+    return /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#4c97ff';
+  }
+
+  function shadeHex(hex, factor) {
+    const value = normalizeAccent(hex).slice(1);
+    const parts = [0, 2, 4].map(function(index) {
+      const channel = parseInt(value.slice(index, index + 2), 16);
+      return Math.max(0, Math.min(255, Math.round(channel * factor)));
+    });
+    return '#' + parts.map(function(channel) {
+      return channel.toString(16).padStart(2, '0');
+    }).join('');
+  }
+
+  function injectFrameTheme(accent) {
+    if (!frame || !frame.contentDocument) return;
+    try {
+      const doc = frame.contentDocument;
+      let style = doc.getElementById('hydro-scratch-theme-style');
+      if (!style) {
+        style = doc.createElement('style');
+        style.id = 'hydro-scratch-theme-style';
+        doc.head.appendChild(style);
+      }
+      style.textContent = [
+        '.menu-bar_menu-bar_x2Jqi{background-color:' + accent + ' !important;}',
+        '.menu-bar_oj-submit-button_RUuwx{background-color:#0fbd8c !important;}',
+        '.menu-bar_menu-bar-button_MpcwB{border-radius:.35rem;}'
+      ].join('\n');
+    } catch (error) {
+      // Cross-origin editor deployments keep the outer theme only.
+    }
+  }
+
+  function applyTheme(value) {
+    const accent = normalizeAccent(value);
+    const dark = shadeHex(accent, 0.72);
+    document.documentElement.style.setProperty('--scratch-accent', accent);
+    document.documentElement.style.setProperty('--scratch-accent-dark', dark);
+    if (themeColor) themeColor.value = accent;
+    window.localStorage.setItem(THEME_KEY, accent);
+    injectFrameTheme(accent);
+    sendSettingsToEditor();
+  }
+
+  function hideExternalFloatingTools() {
+    document.body && document.body.classList.add('scratch-editor-page');
+    const candidates = document.querySelectorAll('button, a, div');
+    candidates.forEach(function(node) {
+      if (!node || (root && root.contains(node))) return;
+      const text = [
+        node.getAttribute('title') || '',
+        node.getAttribute('aria-label') || '',
+        node.className || '',
+        node.id || '',
+        node.textContent || ''
+      ].join(' ');
+      if (!/(搜索|查找|放大|zoom|search|magnif|loupe)/i.test(text)) return;
+      const rect = node.getBoundingClientRect();
+      if (rect.width < 20 || rect.width > 96 || rect.height < 20 || rect.height > 96) return;
+      const style = window.getComputedStyle(node);
+      const nearRight = window.innerWidth - rect.right < 120;
+      const nearBottom = window.innerHeight - rect.bottom < 120;
+      if ((style.position === 'fixed' || style.position === 'sticky' || style.position === 'absolute') && nearRight && nearBottom) {
+        node.style.display = 'none';
+        node.setAttribute('aria-hidden', 'true');
+      }
+    });
+  }
+
+  function getFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+  }
+
+  function requestFullscreen(element) {
+    const request = element && (element.requestFullscreen || element.webkitRequestFullscreen || element.msRequestFullscreen);
+    return request ? request.call(element) : Promise.reject(new Error('Fullscreen API is unavailable.'));
+  }
+
+  function exitFullscreen() {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+    return exit ? exit.call(document) : Promise.resolve();
+  }
+
+  function toggleWorkspaceFullscreen() {
+    const target = root || frame || document.documentElement;
+    if (target && target.classList && target.classList.contains('is-browser-fullscreen') && !getFullscreenElement()) {
+      target.classList.remove('is-browser-fullscreen');
+      return;
+    }
+    const task = getFullscreenElement() ? exitFullscreen() : requestFullscreen(target);
+    Promise.resolve(task).catch(function() {
+      if (target && target.classList) target.classList.toggle('is-browser-fullscreen');
+    });
   }
 
   window.addEventListener('message', function(event) {
@@ -499,74 +1217,162 @@
       if (!pending) return;
       window.clearTimeout(pending.timer);
       pendingExports.delete(data.requestId);
-      pending.reject(new Error(data.message || 'Scratch export failed.'));
+      pending.reject(new Error(data.message || 'Scratch 导出失败。'));
     } else if (data.type === 'SCRATCH_OJ_SUBMIT_SB3') {
       submitProject();
+    } else if (data.type === 'SCRATCH_OJ_VIEW_PROBLEM') {
+      showProblemFromEditor();
+    } else if (data.type === 'SCRATCH_OJ_TOGGLE_FULLSCREEN') {
+      toggleWorkspaceFullscreen();
+    } else if (data.type === 'SCRATCH_OJ_SAVE_DRAFT') {
+      saveDraft(false);
+    } else if (data.type === 'SCRATCH_OJ_SET_AUTOSAVE') {
+      if (autoSaveToggle) autoSaveToggle.checked = !!data.enabled;
+      sendSettingsToEditor();
+    } else if (data.type === 'SCRATCH_OJ_SET_THEME') {
+      applyTheme(data.color || '#4c97ff');
+    } else if (data.type === 'SCRATCH_OJ_OPEN_PREVIEW') {
+      if (PREVIEW_URL) window.open(PREVIEW_URL, '_blank', 'noopener');
+    } else if (data.type === 'SCRATCH_OJ_OPEN_SUBMISSIONS') {
+      if (SUBMISSIONS_URL) window.location.href = SUBMISSIONS_URL;
+    } else if (data.type === 'SCRATCH_OJ_DOWNLOAD_TEMPLATE') {
+      if (TEMPLATE_URL) window.location.href = TEMPLATE_URL;
     } else if (data.type === 'SCRATCH_OJ_LOAD_SUCCESS') {
-      setStatus('Project loaded.', '');
+      setStatus('项目已加载', '');
+      sendProblemCommentToEditor(false);
     } else if (data.type === 'SCRATCH_OJ_LOAD_ERROR') {
-      setStatus(data.message || 'Project load failed.', 'error');
+      setStatus('加载失败', 'error');
     }
   });
 
-  saveBtn && saveBtn.addEventListener('click', saveDraft);
-  submitBtn && submitBtn.addEventListener('click', submitProject);
-  loadProblemStatementSafe();
-
-  function setFloating(next) {
-    if (!editorPanel) return;
-    floating = next;
-    editorPanel.classList.toggle('is-floating', floating);
-    if (!floating) {
-      editorPanel.style.left = '';
-      editorPanel.style.top = '';
-      editorPanel.style.width = '';
-      editorPanel.style.height = '';
-    } else if (!editorPanel.style.left) {
-      editorPanel.style.left = Math.max(24, Math.round(window.innerWidth * 0.08)) + 'px';
-      editorPanel.style.top = '72px';
-      editorPanel.style.width = Math.max(520, Math.round(window.innerWidth * 0.84)) + 'px';
-      editorPanel.style.height = Math.max(360, Math.round(window.innerHeight * 0.78)) + 'px';
+  saveBtn && saveBtn.addEventListener('click', function() { saveDraft(false); });
+  problemToggle && problemToggle.addEventListener('click', function() {
+    setProblemCollapsed(!root.classList.contains('is-problem-collapsed'));
+  });
+  problemRail && problemRail.addEventListener('click', function() {
+    setProblemCollapsed(false);
+  });
+  problemCollapseInner && problemCollapseInner.addEventListener('click', function() {
+    setProblemCollapsed(true);
+  });
+  themeColor && themeColor.addEventListener('input', function(event) {
+    applyTheme(event.target.value);
+  });
+  moreToggle && moreToggle.addEventListener('click', function(event) {
+    event.stopPropagation();
+    if (suppressMoreToggleClick) {
+      suppressMoreToggleClick = false;
+      return;
     }
-    if (floatToggle) floatToggle.textContent = floating ? '{{ _("Dock Editor") }}' : '{{ _("Floating Window") }}';
-  }
-
-  floatToggle && floatToggle.addEventListener('click', function() {
-    setFloating(!floating);
+    moreMenu.hidden = !moreMenu.hidden;
+  });
+  moreClose && moreClose.addEventListener('click', function() {
+    moreMenu.hidden = true;
+  });
+  scoreHide && scoreHide.addEventListener('click', function(event) {
+    event.stopPropagation();
+    scoreCard.hidden = true;
+  });
+  scoreModalClose && scoreModalClose.addEventListener('click', closeScoreModal);
+  scoreModalOk && scoreModalOk.addEventListener('click', closeScoreModal);
+  scoreModal && scoreModal.addEventListener('click', function(event) {
+    if (event.target === scoreModal) closeScoreModal();
+  });
+  document.addEventListener('click', function(event) {
+    if (!moreMenu || moreMenu.hidden) return;
+    if (event.target.closest('#workspace-tools')) return;
+    moreMenu.hidden = true;
   });
 
-  dragHandle && dragHandle.addEventListener('mousedown', function(event) {
-    if (!floating || !editorPanel) return;
-    if (event.target.closest('button, a, input, label')) return;
-    const rect = editorPanel.getBoundingClientRect();
-    dragging = {
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top
+  toolsDock && toolsDock.addEventListener('mousedown', function(event) {
+    if (event.button !== 0 || event.target.closest('.more-menu, a, input, label, .score-card__close')) return;
+    const dockRect = toolsDock.getBoundingClientRect();
+    const parentRect = toolsDock.parentElement.getBoundingClientRect();
+    toolsDragging = {
+      offsetX: event.clientX - dockRect.left,
+      offsetY: event.clientY - dockRect.top,
+      parentLeft: parentRect.left,
+      parentTop: parentRect.top,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false
     };
-    editorPanel.classList.add('is-dragging');
+    toolsDock.classList.add('is-dragging');
+    event.preventDefault();
+  });
+
+  problemResizer && problemResizer.addEventListener('mousedown', function(event) {
+    if (root.classList.contains('is-problem-collapsed')) return;
+    resizing = {
+      startX: event.clientX,
+      startWidth: problemPanel.getBoundingClientRect().width
+    };
+    root.classList.add('is-resizing');
     event.preventDefault();
   });
 
   window.addEventListener('mousemove', function(event) {
-    if (!dragging || !editorPanel) return;
-    const maxLeft = Math.max(0, window.innerWidth - 120);
-    const maxTop = Math.max(0, window.innerHeight - 80);
-    editorPanel.style.left = Math.min(maxLeft, Math.max(0, event.clientX - dragging.offsetX)) + 'px';
-    editorPanel.style.top = Math.min(maxTop, Math.max(0, event.clientY - dragging.offsetY)) + 'px';
+    if (resizing) {
+      setProblemWidth(resizing.startWidth + event.clientX - resizing.startX);
+      return;
+    }
+    if (toolsDragging) {
+      if (Math.abs(event.clientX - toolsDragging.startX) + Math.abs(event.clientY - toolsDragging.startY) > 4) {
+        toolsDragging.moved = true;
+      }
+      setToolsPosition(
+        event.clientX - toolsDragging.parentLeft - toolsDragging.offsetX,
+        event.clientY - toolsDragging.parentTop - toolsDragging.offsetY
+      );
+    }
   });
 
   window.addEventListener('mouseup', function() {
-    if (editorPanel) editorPanel.classList.remove('is-dragging');
-    dragging = null;
+    const draggedTools = toolsDragging && toolsDragging.moved;
+    resizing = null;
+    toolsDragging = null;
+    root.classList.remove('is-resizing');
+    toolsDock && toolsDock.classList.remove('is-dragging');
+    if (draggedTools) {
+      suppressMoreToggleClick = true;
+      window.setTimeout(function() { suppressMoreToggleClick = false; }, 0);
+    }
   });
 
+  hideExternalFloatingTools();
+  window.setTimeout(hideExternalFloatingTools, 800);
+  window.setTimeout(hideExternalFloatingTools, 2000);
+  loadProblemStatementSafe();
+  setProblemWidth(Number(window.localStorage.getItem(WIDTH_KEY)) || 360);
+  restoreToolsPosition();
+  applyTheme(window.localStorage.getItem(THEME_KEY) || '#4c97ff');
+  setProblemCollapsed(window.localStorage.getItem(PANEL_KEY) === 'collapsed');
+
   frame && frame.addEventListener('load', function() {
-    window.setTimeout(loadInitialProject, 1000);
+    window.setTimeout(function() {
+      injectFrameTheme(themeColor ? themeColor.value : '#4c97ff');
+      sendSettingsToEditor();
+      if (lastScoreSummary) sendScoreToEditor(lastScoreSummary);
+      sendProblemCommentToEditor(false);
+      loadInitialProject();
+    }, 1000);
+  });
+
+  window.addEventListener('resize', function() {
+    restoreToolsPosition();
+    hideExternalFloatingTools();
   });
 
   window.setInterval(function() {
-    if (autoSaveToggle && autoSaveToggle.checked) saveDraft();
+    if (!initialProjectLoaded || busy || (autoSaveToggle && !autoSaveToggle.checked)) return;
+    saveDraft(true);
   }, 120000);
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden' && initialProjectLoaded && !busy && autoSaveToggle && autoSaveToggle.checked) {
+      saveDraft(true);
+    }
+  });
 })();
 </script>
 {% endif %}

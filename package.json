@@ -1,6 +1,6 @@
 {
   "name": "hydro-plugin-scratch",
-  "version": "0.2.11",
+  "version": "0.6.5",
   "description": "hydro的手动测评及出题插件",
   "main": "index.js",
   "types": "dist/index.d.ts",
@@ -10,6 +10,7 @@
     "public",
     "templates",
     "scripts",
+    "docs",
     "DEPLOY.md",
     "UPDATE.md",
     "README.md",
@@ -36,14 +37,17 @@
     "node": ">=22"
   },
   "dependencies": {
-    "yauzl": "^3.2.0"
+    "scratch-render-fonts": "^1.0.252",
+    "scratch-vm": "^5.0.300",
+    "yaml": "^2.9.0",
+    "yauzl": "^3.2.0",
+    "yazl": "^3.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
-    "@types/yazl": "^2.4.5",
     "@types/yauzl": "^2.10.3",
+    "@types/yazl": "^2.4.5",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.14",
-    "yazl": "^3.3.1"
+    "vitest": "^4.0.14"
   }
 }

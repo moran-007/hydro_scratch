@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   FileTooLargeError,
   ForbiddenError,
@@ -21,11 +24,23 @@ import {
 import { ScratchValidationError } from './errors';
 import { HydroApi } from './hydro-api';
 import { ScratchModel } from './model';
+import {
+  createScratchProblemPackageZip,
+  readScratchProblemPackage,
+} from './package';
 import { limitsFromMB, validateScratchProject } from './sb3';
+import {
+  judgeConfigHasChecks,
+  judgeScratchFile,
+  normalizeJudgeConfig,
+  prepareJudgeConfigForMode,
+  stringifyJudgeConfig,
+} from './static-judge';
 import type { PluginConfig, ScratchProblemConfig, ScratchSubmitSource, ScratchSubmissionMeta } from './types';
 
 const SCRATCH_LANG = 'scratch3';
 const STATUS_IGNORED = STATUS?.STATUS_IGNORED ?? 30;
+const STATUS_SYSTEM_ERROR = STATUS?.STATUS_SYSTEM_ERROR ?? STATUS.STATUS_WRONG_ANSWER;
 const SCRATCH_ACTIONS_MARKER = '<!-- hydro-scratch-actions -->';
 
 function parseBoolean(value: unknown, fallback = false) {
@@ -51,9 +66,109 @@ function scoreToStatus(score: number, maxScore: number) {
   return score >= maxScore ? STATUS.STATUS_ACCEPTED : STATUS.STATUS_WRONG_ANSWER;
 }
 
+function autoJudgeEnabled(config: ScratchProblemConfig) {
+  if (config.judgeMode === 'manual') return false;
+  return judgeConfigHasChecks(prepareJudgeConfigForMode(config.judgeConfig, config.maxScore, config.judgeMode));
+}
+
+function autoJudgeSummaryText(result: NonNullable<ScratchSubmissionMeta['autoJudgeResult']>) {
+  return [
+    `Scratch ${result.mode} auto judge finished.`,
+    `Score: ${result.totalScore}/${result.maxScore}`,
+    `Passed checks: ${result.summary.passedChecks}/${result.summary.totalChecks}`,
+  ];
+}
+
+function autoJudgeFailedText(error: string) {
+  return [
+    'Scratch auto judge failed.',
+    error,
+    'The submission is waiting for manual score.',
+  ];
+}
+
+function autoJudgeTestCases(result: NonNullable<ScratchSubmissionMeta['autoJudgeResult']>) {
+  if (!result.details.length) {
+    const status = result.passed ? STATUS.STATUS_ACCEPTED : STATUS.STATUS_WRONG_ANSWER;
+    return [{
+      id: 0,
+      subtaskId: 0,
+      status,
+      score: result.totalScore,
+      time: 0,
+      memory: 0,
+      message: `Scratch ${result.mode} auto judge: ${result.totalScore}/${result.maxScore}`,
+    }];
+  }
+
+  return result.details.map((detail, index) => ({
+    id: index,
+    subtaskId: 0,
+    status: detail.passed ? STATUS.STATUS_ACCEPTED : STATUS.STATUS_WRONG_ANSWER,
+    score: detail.score,
+    time: 0,
+    memory: 0,
+    message: detail.hint ? `${detail.message} Hint: ${detail.hint}` : detail.message,
+  }));
+}
+
+function autoJudgeRecordPatch(
+  result: ScratchSubmissionMeta['autoJudgeResult'] | undefined,
+  error: string | undefined,
+) {
+  if (result) {
+    const status = scoreToStatus(result.totalScore, result.maxScore);
+    return {
+      status,
+      score: result.totalScore,
+      judgeTexts: autoJudgeSummaryText(result),
+      testCases: autoJudgeTestCases(result),
+      message: `Scratch ${result.mode} auto judge: ${result.totalScore}/${result.maxScore}`,
+    };
+  }
+
+  if (error) {
+    return {
+      status: STATUS_IGNORED,
+      score: 0,
+      judgeTexts: autoJudgeFailedText(error),
+      testCases: [{
+        id: 0,
+        subtaskId: 0,
+        status: STATUS_SYSTEM_ERROR,
+        score: 0,
+        time: 0,
+        memory: 0,
+        message: `Scratch auto judge failed: ${error}`,
+      }],
+      message: `Scratch auto judge failed: ${error}`,
+    };
+  }
+
+  return {
+    status: STATUS_IGNORED,
+    score: 0,
+    judgeTexts: undefined,
+    testCases: [{
+      id: 0,
+      subtaskId: 0,
+      status: STATUS_IGNORED,
+      score: 0,
+      time: 0,
+      memory: 0,
+      message: 'Scratch project saved without automatic judging.',
+    }],
+    message: 'Scratch project saved without automatic judging.',
+  };
+}
+
 function filenameFor(originalName: string | undefined, fallback: string) {
   const name = (originalName || fallback).replace(/[\\/:*?"<>|]/g, '_');
   return name.toLowerCase().endsWith('.sb3') ? name : `${name}.sb3`;
+}
+
+function packageFilenameFor(originalName: string | undefined, fallback: string) {
+  return (originalName || fallback).replace(/[\\/:*?"<>|]/g, '_');
 }
 
 async function validateUploadedScratchProject(filePath: string, originalName: string, config: ScratchProblemConfig) {
@@ -154,7 +269,7 @@ function appendScratchProblemActionsSafe(pdoc: any, handler: Handler, config: Sc
   const editUrl = buildHandlerUrl(handler, 'scratch_problem_edit', { pid: pdoc.docId });
   const canManage = userCanManageProblem(handler.user, pdoc);
   const managerLinks = canManage
-    ? `\n\nTeacher entry: [Submissions / Manual score](${submissionsUrl}) | [Edit Scratch problem](${editUrl})`
+    ? `\n\n教师入口：[查看提交 / 手动评分](${submissionsUrl}) | [编辑 Scratch 题目](${editUrl})`
     : '';
   pdoc.content = `${pdoc.content}
 
@@ -162,9 +277,9 @@ ${SCRATCH_ACTIONS_MARKER}
 
 ---
 
-**Scratch Online Editor**
+**Scratch 在线答题**
 
-[Open Scratch Online Editor](${editorUrl}) | [My Scratch submissions](${submissionsUrl})
+[进入 Scratch 答题页面](${editorUrl}) | [查看我的提交](${submissionsUrl})
 ${managerLinks}`;
 }
 
@@ -542,6 +657,42 @@ function normalizeProblemPid(pid: string | number | undefined, fallback: string 
   return typeof next === 'string' ? next : `P${next}`;
 }
 
+function validateImportPid(pid: string) {
+  if (/^\d+$/.test(pid)) return '';
+  if (pid && !/^(?:[a-z0-9]{1,10}-)?[a-z][a-z0-9]*$/i.test(pid)) throw new ValidationError('pid');
+  return pid;
+}
+
+function portableProblemPid(pdoc: any, routePid?: string | number) {
+  const pid = pdoc?.pid || routePid;
+  if (pid === undefined || pid === null || pid === '') return undefined;
+  const value = String(pid);
+  return /^\d+$/.test(value) ? undefined : value;
+}
+
+function problemTags(pdoc: any) {
+  const raw = pdoc?.tag ?? pdoc?.tags ?? pdoc?.categories ?? [];
+  const values = Array.isArray(raw) ? raw : [raw];
+  return [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))];
+}
+
+function stripScratchActions(content: string) {
+  const markerIndex = content.indexOf(SCRATCH_ACTIONS_MARKER);
+  if (markerIndex < 0) return content;
+  return content.slice(0, markerIndex).replace(/\n*---\s*$/m, '').trimEnd();
+}
+
+function bufferFromStorage(value: unknown) {
+  if (Buffer.isBuffer(value)) return value;
+  if (typeof value === 'string') return Buffer.from(value);
+  if (value instanceof Uint8Array) return Buffer.from(value);
+  return Buffer.from([]);
+}
+
+function downloadFilename(value: string) {
+  return value.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '-').toLowerCase();
+}
+
 function buildScratchConfigPatch(
   current: ScratchProblemConfig,
   body: Record<string, any>,
@@ -551,6 +702,17 @@ function buildScratchConfigPatch(
   const disabledScratchExtensions = (body.disabledScratchExtensions ?? body.disabled_scratch_extensions) === undefined
     ? current.disabledScratchExtensions
     : parseStringArray(body.disabledScratchExtensions || body.disabled_scratch_extensions);
+  const maxScore = Number(body.maxScore || body.max_score || current.maxScore);
+  const judgeConfigInput = body.judgeConfig ?? body.judge_config;
+  let judgeConfig = current.judgeConfig;
+  if (judgeConfigInput !== undefined) {
+    try {
+      judgeConfig = normalizeJudgeConfig(judgeConfigInput, maxScore);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new ValidationError(`judgeConfig: ${message}`);
+    }
+  }
   return {
     enabled: parseBoolean(body.enabled, isFormPost ? false : current.enabled),
     submitMode: body.submitMode || body.submit_mode || current.submitMode,
@@ -562,7 +724,8 @@ function buildScratchConfigPatch(
     maxAssetCount: Number(body.maxAssetCount || body.max_asset_count || current.maxAssetCount),
     maxProjectJsonSizeMB: Number(body.maxProjectJsonSizeMB || body.max_project_json_size_mb || current.maxProjectJsonSizeMB),
     disabledScratchExtensions,
-    maxScore: Number(body.maxScore || body.max_score || current.maxScore),
+    judgeConfig,
+    maxScore,
     updatedBy: userId,
   };
 }
@@ -624,7 +787,9 @@ export class ScratchProblemConfigHandler extends ScratchProblemHandler {
     this.response.body = {
       pdoc: this.pdoc,
       config: this.scratchConfig,
+      judgeConfigText: stringifyJudgeConfig(this.scratchConfig.judgeConfig),
       editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
+      exportUrl: this.url('scratch_problem_export', { pid: this.pdoc.docId }),
       templateUploadUrl: this.url('scratch_problem_template', { pid: this.pdoc.docId }),
       submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       templateDownloadUrl: this.scratchConfig.templatePath
@@ -656,6 +821,7 @@ export class ScratchProblemCreateHandler extends Handler {
     this.response.body = {
       defaultContent: 'Scratch project assignment.\n\nUpload a .sb3 file to submit your work.',
       defaultMaxScore: this.pluginConfig.maxScore,
+      importUrl: this.url('scratch_problem_import'),
     };
   }
 
@@ -686,6 +852,94 @@ export class ScratchProblemCreateHandler extends Handler {
   }
 }
 
+export class ScratchProblemImportHandler extends Handler {
+  pluginConfig!: PluginConfig;
+
+  async get() {
+    this.response.template = 'scratch_problem_import.html';
+    this.response.body = {
+      createUrl: this.url('scratch_problem_create'),
+    };
+  }
+
+  async post() {
+    const domainId = String(this.args.domainId || 'system');
+    const file = this.request.files?.file;
+    if (!file || file.size === 0) throw new ValidationError('file');
+    if (!String(file.originalFilename || '').toLowerCase().endsWith('.zip')) throw new ValidationError('file');
+    if (file.size > 128 * 1024 * 1024) throw new FileTooLargeError('file');
+
+    const body = this.args || {};
+    const problemPackage = await readScratchProblemPackage(file.filepath, this.pluginConfig);
+    const manifest = problemPackage.manifest;
+    const scratch = manifest.scratch || {};
+    const limits = scratch.limits || {};
+    const requestedPid = validateImportPid(String(body.pid || manifest.pid || '').trim());
+    if (requestedPid && await HydroApi.problem.get(domainId, requestedPid)) {
+      throw new ValidationError(`Problem ${requestedPid} already exists.`);
+    }
+
+    const hidden = body.hidden === undefined ? !!manifest.hidden : parseBoolean(body.hidden, false);
+    const tags = [...new Set([...(manifest.tags || []), 'Scratch'])];
+    const docId = await HydroApi.problem.add(
+      domainId,
+      requestedPid,
+      manifest.title,
+      problemPackage.statement || 'Scratch project assignment.',
+      this.user._id,
+      tags,
+      { hidden },
+    );
+
+    let config = await ScratchModel.setProblemConfig(domainId, docId, this.pluginConfig, {
+      enabled: scratch.enabled ?? true,
+      submitMode: scratch.submitMode || 'both',
+      judgeMode: scratch.judgeMode || 'hybrid',
+      allowDownloadTemplate: scratch.allowDownloadTemplate ?? true,
+      maxScore: scratch.maxScore || this.pluginConfig.maxScore,
+      maxProjectSizeMB: limits.maxProjectSizeMB || this.pluginConfig.maxProjectSizeMB,
+      maxUnpackedSizeMB: limits.maxUnpackedSizeMB || this.pluginConfig.maxUnpackedSizeMB,
+      maxAssetSizeMB: limits.maxAssetSizeMB || this.pluginConfig.maxAssetSizeMB,
+      maxAssetCount: limits.maxAssetCount || this.pluginConfig.maxAssetCount,
+      maxProjectJsonSizeMB: limits.maxProjectJsonSizeMB || this.pluginConfig.maxProjectJsonSizeMB,
+      disabledScratchExtensions: scratch.disabledScratchExtensions?.length
+        ? scratch.disabledScratchExtensions
+        : undefined,
+      judgeConfig: problemPackage.judgeConfig,
+      updatedBy: this.user._id,
+    });
+
+    if (problemPackage.template) {
+      const tmpDir = await mkdtemp(join(tmpdir(), 'scratch-package-template-'));
+      const tmpFile = join(tmpDir, packageFilenameFor(problemPackage.template.filename, 'template.sb3'));
+      try {
+        await writeFile(tmpFile, problemPackage.template.content);
+        const originalName = filenameFor(problemPackage.template.filename, `problem-${docId}-template.sb3`);
+        const validation = await validateUploadedScratchProject(tmpFile, originalName, config);
+        const templatePath = `${this.pluginConfig.storagePrefix}/${domainId}/problem/${docId}/template.sb3`;
+        await HydroApi.storage.put(templatePath, tmpFile, this.user._id);
+        const meta = await HydroApi.storage.getMeta(templatePath);
+        config = await ScratchModel.setProblemConfig(domainId, docId, this.pluginConfig, {
+          ...config,
+          templatePath,
+          templateName: originalName,
+          templateMeta: meta || {
+            size: problemPackage.template.content.length,
+          },
+          updatedBy: this.user._id,
+        });
+        this.response.body = { pid: requestedPid || docId, docId, config, validation };
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    } else {
+      this.response.body = { pid: requestedPid || docId, docId, config };
+    }
+
+    if (!this.request.json) this.response.redirect = this.url('scratch_problem_config', { pid: requestedPid || docId });
+  }
+}
+
 export class ScratchProblemEditHandler extends ScratchProblemHandler {
   async get() {
     this.ensureProblemManager();
@@ -693,10 +947,12 @@ export class ScratchProblemEditHandler extends ScratchProblemHandler {
     this.response.body = {
       pdoc: this.pdoc,
       config: this.scratchConfig,
+      judgeConfigText: stringifyJudgeConfig(this.scratchConfig.judgeConfig),
       templateUploadUrl: this.url('scratch_problem_template', { pid: this.pdoc.docId }),
       templateDownloadUrl: this.scratchConfig.templatePath
         ? this.url('scratch_problem_template', { pid: this.pdoc.docId })
         : '',
+      exportUrl: this.url('scratch_problem_export', { pid: this.pdoc.docId }),
       editorWorkspaceUrl: ['editor', 'both'].includes(this.scratchConfig.submitMode)
         ? this.url('scratch_editor', { pid: this.pdoc.docId })
         : '',
@@ -773,6 +1029,50 @@ export class ScratchProblemTemplateHandler extends ScratchProblemHandler {
   }
 }
 
+export class ScratchProblemExportHandler extends ScratchProblemHandler {
+  async get() {
+    this.ensureProblemManager();
+    let template: { filename: string; content: Buffer } | undefined;
+    if (this.scratchConfig.templatePath) {
+      const content = bufferFromStorage(await HydroApi.storage.get(this.scratchConfig.templatePath));
+      if (content.length) {
+        template = {
+          filename: filenameFor(this.scratchConfig.templateName, `problem-${this.pdoc.docId}-template.sb3`),
+          content,
+        };
+      }
+    }
+
+    const buffer = await createScratchProblemPackageZip({
+      pid: portableProblemPid(this.pdoc, this.routePid),
+      title: this.pdoc.title || `Scratch Problem ${this.pdoc.docId}`,
+      hidden: !!this.pdoc.hidden,
+      tags: problemTags(this.pdoc),
+      statement: stripScratchActions(String(this.pdoc.content || '')),
+      scratch: {
+        enabled: this.scratchConfig.enabled,
+        submitMode: this.scratchConfig.submitMode,
+        judgeMode: this.scratchConfig.judgeMode,
+        maxScore: this.scratchConfig.maxScore,
+        allowDownloadTemplate: this.scratchConfig.allowDownloadTemplate,
+        disabledScratchExtensions: this.scratchConfig.disabledScratchExtensions,
+        maxProjectSizeMB: this.scratchConfig.maxProjectSizeMB,
+        maxUnpackedSizeMB: this.scratchConfig.maxUnpackedSizeMB,
+        maxAssetSizeMB: this.scratchConfig.maxAssetSizeMB,
+        maxAssetCount: this.scratchConfig.maxAssetCount,
+        maxProjectJsonSizeMB: this.scratchConfig.maxProjectJsonSizeMB,
+        judgeConfig: this.scratchConfig.judgeConfig,
+      },
+      template,
+    });
+
+    const name = downloadFilename(String(this.pdoc.pid || this.routePid || this.pdoc.docId || 'scratch-problem'));
+    this.response.body = buffer;
+    this.response.type = 'application/zip';
+    this.response.disposition = `attachment; filename="${name}.scratch-problem.zip"`;
+  }
+}
+
 export class ScratchSubmitHandler extends ScratchProblemHandler {
   @post('source', Types.Range(['upload', 'editor']), true)
   @post('tid', Types.ObjectId, true)
@@ -802,6 +1102,22 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     const projectPath = `submission/${submissionFileId}`;
     await HydroApi.storage.put(projectPath, file.filepath, this.user._id);
     const meta = await HydroApi.storage.getMeta(projectPath);
+    let autoJudgeResult: ScratchSubmissionMeta['autoJudgeResult'] | undefined;
+    let autoJudgeError: string | undefined;
+    if (autoJudgeEnabled(this.scratchConfig)) {
+      try {
+        const judgeConfig = prepareJudgeConfigForMode(
+          this.scratchConfig.judgeConfig,
+          this.scratchConfig.maxScore,
+          this.scratchConfig.judgeMode,
+        );
+        autoJudgeResult = await judgeScratchFile(file.filepath, judgeConfig);
+      } catch (error) {
+        autoJudgeError = error instanceof Error ? error.message : String(error);
+      }
+    }
+    const recordPatch = autoJudgeRecordPatch(autoJudgeResult, autoJudgeError);
+    const autoJudgeAt = autoJudgeResult || autoJudgeError ? new Date() : undefined;
     const submission: ScratchSubmissionMeta = {
       domainId: effectiveDomainId,
       rid,
@@ -812,9 +1128,13 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       projectSize: meta?.size || file.size,
       source,
       validation,
+      score: autoJudgeResult ? autoJudgeResult.totalScore : undefined,
       maxScore: this.scratchConfig.maxScore,
-      status: STATUS_IGNORED,
-      scored: false,
+      status: recordPatch.status,
+      scored: !!autoJudgeResult,
+      autoJudgeResult,
+      autoJudgeAt,
+      autoJudgeError,
       previewAvailable: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -827,6 +1147,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     const previewUrl = this.url('scratch_submission_preview', { rid });
     const historyUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
     const scoreUrl = this.url('scratch_submission_score', { rid });
+    const reportUrl = this.url('scratch_submission_report', { rid });
     await HydroApi.record.update(effectiveDomainId, rid, {
       code: [
         'Scratch project submitted.',
@@ -836,38 +1157,45 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
         `File: ${originalName}`,
       ].join('\n'),
       files: { code: `${submissionFileId}#${originalName}` },
-      status: STATUS_IGNORED,
-      score: 0,
+      status: recordPatch.status,
+      score: recordPatch.score,
       time: 0,
       memory: 0,
       progress: 100,
       judgeAt: new Date(),
       judger: 'scratch',
       source: 'scratch',
-      judgeTexts: [
+      judgeTexts: recordPatch.judgeTexts || [
         'Scratch submission uploaded. Waiting for manual score.',
         `Scratch preview: ${previewUrl}`,
         `Scratch history: ${historyUrl}`,
       ],
-      testCases: [{
-        id: 0,
-        subtaskId: 0,
-        status: STATUS_IGNORED,
-        score: 0,
-        time: 0,
-        memory: 0,
-        message: 'Scratch project saved without automatic judging.',
-      }],
+      testCases: recordPatch.testCases,
     });
     await Promise.all([
       HydroApi.problem.inc(effectiveDomainId, this.pdoc.docId, 'nSubmit', 1),
       HydroApi.domain.incUserInDomain(effectiveDomainId, this.user._id, 'nSubmit'),
       tid && HydroApi.contest.updateStatus(effectiveDomainId, tid, this.user._id, rid, this.pdoc.docId),
     ]);
+    if (autoJudgeResult) {
+      await HydroApi.judge.end(effectiveDomainId, rid, {
+        status: recordPatch.status,
+        score: recordPatch.score,
+        time: 0,
+        memory: 0,
+        message: recordPatch.message,
+        case: recordPatch.testCases[0],
+        judger: 'scratch-auto',
+      });
+    }
     this.response.body = {
       ok: true,
       rid,
-      status: 'Waiting',
+      status: autoJudgeResult ? (autoJudgeResult.passed ? 'Accepted' : 'Wrong Answer') : 'Waiting',
+      score: autoJudgeResult?.totalScore,
+      maxScore: autoJudgeResult?.maxScore || this.scratchConfig.maxScore,
+      autoJudgeResult,
+      autoJudgeError,
       projectPath,
       validation,
       redirectUrl: problemUrl,
@@ -877,6 +1205,7 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       recordUrl: this.url('record_detail', { rid }),
       downloadUrl: this.url('scratch_submission_project', { rid }),
       scoreUrl,
+      reportUrl,
     };
   }
 }
@@ -979,6 +1308,11 @@ export class ScratchSubmissionReportHandler extends ScratchSubmissionHandler {
         by: this.submission.manualScoreBy,
         at: this.submission.manualScoreAt,
         comment: this.submission.manualComment,
+      },
+      autoJudge: {
+        result: this.submission.autoJudgeResult,
+        at: this.submission.autoJudgeAt,
+        error: this.submission.autoJudgeError,
       },
     };
   }
@@ -1121,8 +1455,10 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
     pluginConfig = pluginConfig;
   };
   ctx.Route('scratch_problem_create', '/scratch/problem/create', bindConfig(ScratchProblemCreateHandler), PERM.PERM_CREATE_PROBLEM);
+  ctx.Route('scratch_problem_import', '/scratch/problem/import', bindConfig(ScratchProblemImportHandler), PERM.PERM_CREATE_PROBLEM);
   ctx.Route('scratch_problem_edit', '/scratch/problem/:pid/edit', bindConfig(ScratchProblemEditHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_config', '/scratch/problem/:pid/config', bindConfig(ScratchProblemConfigHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_problem_export', '/scratch/problem/:pid/export', bindConfig(ScratchProblemExportHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_template', '/scratch/problem/:pid/template', bindConfig(ScratchProblemTemplateHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_statement', '/scratch/problem/:pid/statement', bindConfig(ScratchProblemStatementHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_submissions', '/scratch/problem/:pid/submissions', bindConfig(ScratchProblemSubmissionsHandler), PERM.PERM_VIEW_PROBLEM);

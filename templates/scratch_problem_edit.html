@@ -10,6 +10,7 @@
           <a class="rounded button" href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ _('Problem') }}</a>
           <a class="rounded button" href="{{ configUrl }}">{{ _('Settings') }}</a>
           <a class="rounded button" href="{{ submissionsUrl }}">{{ _('Submissions') }}</a>
+          <a class="rounded button" href="{{ exportUrl }}">Export Package</a>
           {% if editorWorkspaceUrl %}
           <a class="rounded primary button" href="{{ editorWorkspaceUrl }}">{{ _('Scratch Editor') }}</a>
           {% endif %}
@@ -64,6 +65,13 @@
               label:'Max Score',
               name:'maxScore',
               value:config.maxScore
+            }) }}
+          {{ form.form_textarea({
+              label:'Auto Judge Config',
+              name:'judgeConfig',
+              value:judgeConfigText,
+              rows:14,
+              help_text:'JSON config for staticChecks, structureChecks, and dynamicChecks. Static, Dynamic, and Hybrid modes run the matching checks automatically after submit.'
             }) }}
           {{ form.form_textarea({
               label:'Disabled Scratch Extensions',

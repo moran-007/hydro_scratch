@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Player 角色",
+      "type": "sprite_exists",
+      "sprite": "Player",
+      "score": 10
+    },
+    {
+      "name": "存在 steps 变量",
+      "type": "variable_exists",
+      "variable": "steps",
+      "score": 10
+    }
+  ],
+  "structureChecks": [
+    {
+      "name": "Player 使用右方向键事件",
+      "type": "block_field_equals",
+      "target": "Player",
+      "opcode": "event_whenkeypressed",
+      "fields": {
+        "KEY_OPTION": "right arrow"
+      },
+      "score": 15,
+      "hint": "请在 Player 角色中使用“当按下右方向键”。"
+    },
+    {
+      "name": "按键脚本中包含移动和计数",
+      "type": "script_module",
+      "target": "Player",
+      "hat": "event_whenkeypressed",
+      "requiredOpcodes": [
+        "motion_changexby",
+        "data_changevariableby"
+      ],
+      "ordered": true,
+      "score": 25,
+      "hint": "请把向右移动和 steps 增加放在同一条按键脚本里。"
+    }
+  ],
+  "dynamicChecks": [
+    {
+      "name": "绿旗后 steps 归零",
+      "type": "variable_value",
+      "variable": "steps",
+      "expected": 0,
+      "operator": "equals",
+      "score": 15,
+      "steps": [
+        { "action": "green_flag" },
+        { "action": "wait", "ms": 300 }
+      ],
+      "hint": "请在绿旗脚本中把 steps 设置为 0。"
+    },
+    {
+      "name": "按两次右方向键后 steps 至少为 2",
+      "type": "variable_value",
+      "variable": "steps",
+      "expected": 2,
+      "operator": "greater_or_equal",
+      "score": 35,
+      "steps": [
+        { "action": "green_flag" },
+        { "action": "wait", "ms": 300 },
+        { "action": "key_press", "key": "right arrow", "ms": 100 },
+        { "action": "wait", "ms": 200 },
+        { "action": "key_press", "key": "right arrow", "ms": 100 },
+        { "action": "wait", "ms": 300 }
+      ],
+      "hint": "每按一次右方向键，steps 应增加 1。"
+    }
+  ],
+  "dynamicOptions": {
+    "timeoutMs": 6000,
+    "keyPressMs": 100
+  }
+}

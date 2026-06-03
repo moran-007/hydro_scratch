@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Player 角色",
+      "type": "sprite_exists",
+      "sprite": "Player",
+      "score": 10
+    }
+  ],
+  "structureChecks": [
+    {
+      "name": "Player 绿旗脚本顺序正确",
+      "type": "script_sequence",
+      "target": "Player",
+      "hat": "event_whenflagclicked",
+      "sequence": [
+        "event_whenflagclicked",
+        "motion_gotoxy",
+        "motion_movesteps"
+      ],
+      "score": 30
+    }
+  ],
+  "dynamicChecks": [
+    {
+      "name": "Player 到达目标位置",
+      "type": "sprite_position",
+      "target": "Player",
+      "expected": {
+        "x": 100,
+        "y": 0
+      },
+      "tolerance": 5,
+      "score": 60,
+      "steps": [
+        {
+          "action": "green_flag"
+        },
+        {
+          "action": "wait",
+          "ms": 800
+        }
+      ]
+    }
+  ],
+  "dynamicOptions": {
+    "timeoutMs": 5000,
+    "positionTolerance": 5
+  }
+}

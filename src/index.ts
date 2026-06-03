@@ -5,7 +5,9 @@ import { ScratchModel } from './model';
 import type { PluginConfig } from './types';
 
 export * from './errors';
+export * from './package';
 export * from './sb3';
+export * from './static-judge';
 export * from './types';
 
 function normalizePluginConfig(config: Partial<PluginConfig> = {}): PluginConfig {

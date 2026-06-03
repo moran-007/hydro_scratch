@@ -1,0 +1,52 @@
+{% extends "layout/basic.html" %}
+{% block content %}
+<div class="row">
+  <div class="medium-8 columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">Import Scratch Problem Package</h1>
+      </div>
+      <div class="section__body">
+        <form method="post" enctype="multipart/form-data">
+          <p>
+            <input type="file" name="file" accept=".zip" required>
+          </p>
+          {{ form.form_text({
+              label:'Problem ID Override',
+              name:'pid',
+              help_text:'Optional. Leave empty to use the pid in problem.yaml, or Hydro numeric ID if none is provided.'
+            }) }}
+          {{ form.form_checkbox({
+              label:'Hidden',
+              name:'hidden',
+              value:false
+            }) }}
+          <div class="row">
+            <div class="columns">
+              <input type="submit" class="rounded primary button" value="{{ _('Import') }}">
+              <a class="rounded button" href="{{ createUrl }}">{{ _('Back') }}</a>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="medium-4 columns">
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">Package Format</h1>
+      </div>
+      <div class="section__body typo">
+        <p>Upload a zip package with these files:</p>
+        <ul>
+          <li><code>problem.yaml</code></li>
+          <li><code>statement.md</code></li>
+          <li><code>scratch-judge.json</code></li>
+          <li><code>template.sb3</code> optional</li>
+        </ul>
+        <p>The imported item is a normal Hydro problem plus Scratch auto-judge configuration.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

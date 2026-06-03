@@ -449,6 +449,56 @@ describe('Scratch problem config upsert', () => {
     });
   });
 
+  it('ScratchProblemConfigHandler.post stores static judgeConfig JSON', async () => {
+    const { defaultProblemConfig } = await import('../src/config');
+    const { ScratchProblemConfigHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemConfigHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.pdoc = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Scratch title',
+    };
+    handler.scratchConfig = defaultProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG);
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => true,
+    };
+    handler.args = {
+      enabled: 'on',
+      submitMode: 'editor',
+      judgeMode: 'static',
+      maxScore: '100',
+      judgeConfig: JSON.stringify({
+        totalScore: 100,
+        staticChecks: [
+          { type: 'sprite_exists', name: '存在 Player', sprite: 'Player', score: 50 },
+          { type: 'block_exists', name: '点击绿旗', opcode: 'event_whenflagclicked', score: 50 },
+        ],
+      }),
+    };
+    handler.request = {};
+
+    await expect(handler.post()).resolves.toBeUndefined();
+
+    const [storedDoc] = hydroState.getDocs('scratch.problem');
+    expect(storedDoc).toMatchObject({
+      domainId: 'system',
+      problemId: 1001,
+      judgeMode: 'static',
+      judgeConfig: {
+        totalScore: 100,
+        staticChecks: [
+          { type: 'sprite_exists', name: '存在 Player', sprite: 'Player', score: 50 },
+          { type: 'block_exists', name: '点击绿旗', opcode: 'event_whenflagclicked', score: 50 },
+        ],
+      },
+    });
+  });
+
   it('ScratchEditorHandler.get preserves contest/homework tid for editor submission', async () => {
     const { defaultProblemConfig } = await import('../src/config');
     const { ScratchEditorHandler } = await import('../src/editor');
