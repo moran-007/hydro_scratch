@@ -38,8 +38,56 @@ function appendQuery(url: string, query: Record<string, string | number | boolea
   return `${url}${url.includes('?') ? '&' : '?'}${search.toString()}`;
 }
 
+function safeLocalUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || /[\r\n]/.test(text)) return '';
+  if (!text.startsWith('/') || text.startsWith('//')) return '';
+  return text;
+}
+
 function getQueryValue(handler: Handler, name: string) {
   return handler.request.query?.[name] ?? handler.args?.[name];
+}
+
+function getFirstQueryValue(handler: Handler, names: string[]) {
+  for (const name of names) {
+    const value = getQueryValue(handler, name);
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return '';
+}
+
+function getRequestHeader(handler: Handler, name: string) {
+  const request: any = handler.request as any;
+  const getter = request?.get || request?.header;
+  if (typeof getter === 'function') {
+    try {
+      const value = getter.call(request, name);
+      if (value) return value;
+    } catch { /* fall through to header object lookup */ }
+  }
+  const headers = request?.headers || {};
+  return headers[name.toLowerCase()] || headers[name] || '';
+}
+
+function getRefererQueryValue(handler: Handler, names: string[]) {
+  const referer = String(getRequestHeader(handler, 'referer') || getRequestHeader(handler, 'referrer') || '');
+  if (!referer) return '';
+  try {
+    const url = new URL(referer, 'http://hydro.local');
+    for (const name of names) {
+      const value = url.searchParams.get(name);
+      if (value) return value;
+    }
+  } catch {
+    return '';
+  }
+  return '';
+}
+
+function normalizeObjectIdText(value: unknown) {
+  const text = String(value || '').trim();
+  return /^[0-9a-f]{24}$/i.test(text) ? text : '';
 }
 
 function sameUserId(left: unknown, right: unknown) {
@@ -91,10 +139,32 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
     this.ensureEditorEnabled();
     if (!this.user.hasPerm(PERM.PERM_VIEW_PROBLEM)) throw new ForbiddenError();
     const editorUrl = buildScratchEditorUrl(this.pluginConfig);
-    const tid = getQueryValue(this, 'tid') as string | undefined;
+    const tid = normalizeObjectIdText(getQueryValue(this, 'tid') || getRefererQueryValue(this, ['tid'])) || undefined;
     const problemQuery = { scratch: 0, tid };
     const problemUrl = appendQuery(this.url('problem_detail', { pid: this.pdoc.docId }), problemQuery);
     const canManage = userCanManageProblem(this.user, this.pdoc);
+    const requestedReturnUrl = safeLocalUrl(getFirstQueryValue(this, ['returnUrl', 'return', 'redirect']));
+    const trainingId = getFirstQueryValue(this, ['training', 'trainingId', 'trid']);
+    let returnListUrl = '';
+    let returnListLabel = '';
+    if (tid) {
+      try {
+        const tdoc = await HydroApi.contest.get(this.pdoc.domainId, tid);
+        if (tdoc?.rule === 'homework') {
+          returnListUrl = this.url('homework_detail', { tid });
+          returnListLabel = '返回作业';
+        } else {
+          returnListUrl = this.url('contest_problemlist', { tid });
+          returnListLabel = '返回比赛题目列表';
+        }
+      } catch {
+        returnListUrl = this.url('contest_problemlist', { tid });
+        returnListLabel = '返回比赛题目列表';
+      }
+    } else if (trainingId) {
+      returnListUrl = this.url('training_detail', { tid: trainingId });
+      returnListLabel = '返回训练';
+    }
     this.response.template = 'scratch_editor.html';
     this.response.body = {
       pdoc: this.pdoc,
@@ -115,6 +185,9 @@ export class ScratchEditorHandler extends ScratchEditorBaseHandler {
       previewUrl: problemUrl,
       submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       submissionsLabel: canManage ? 'Review Submissions' : 'My Submissions',
+      returnUrl: requestedReturnUrl || problemUrl,
+      returnListUrl,
+      returnListLabel,
       canManage,
     };
   }

@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -162,6 +162,52 @@ function autoJudgeRecordPatch(
   };
 }
 
+async function syncHydroScoreState(
+  domainId: string,
+  rid: any,
+  pid: number,
+  uid: number,
+  tid: any,
+  patch: ReturnType<typeof autoJudgeRecordPatch>,
+  judger: string | number,
+) {
+  await Promise.all([
+    HydroApi.problem.updateStatus(domainId, pid, uid, rid, patch.status, patch.score),
+    tid && HydroApi.contest.updateStatus(domainId, tid, uid, rid, pid, {
+      status: patch.status,
+      score: patch.score,
+      lang: SCRATCH_LANG,
+    }),
+  ].filter(Boolean));
+  await HydroApi.judge.end(domainId, rid, {
+    status: patch.status,
+    score: patch.score,
+    time: 0,
+    memory: 0,
+    message: patch.message,
+    judger,
+  });
+}
+
+async function contestReturnInfo(handler: Handler, domainId: string, tid: any) {
+  if (!tid) return { returnListUrl: '', returnListLabel: '' };
+  try {
+    const tdoc = await HydroApi.contest.get(domainId, tid);
+    if (tdoc?.rule === 'homework') {
+      return {
+        returnListUrl: handler.url('homework_detail', { tid }),
+        returnListLabel: '返回作业',
+      };
+    }
+  } catch {
+    // Fall back to the contest problem list route below.
+  }
+  return {
+    returnListUrl: handler.url('contest_problemlist', { tid }),
+    returnListLabel: '返回比赛题目列表',
+  };
+}
+
 function filenameFor(originalName: string | undefined, fallback: string) {
   const name = (originalName || fallback).replace(/[\\/:*?"<>|]/g, '_');
   return name.toLowerCase().endsWith('.sb3') ? name : `${name}.sb3`;
@@ -192,6 +238,13 @@ function appendQuery(url: string, query: Record<string, string | number | boolea
   });
   if (!search.toString()) return url;
   return `${url}${url.includes('?') ? '&' : '?'}${search.toString()}`;
+}
+
+function safeLocalUrl(value: unknown) {
+  const text = String(value || '').trim();
+  if (!text || /[\r\n]/.test(text)) return '';
+  if (!text.startsWith('/') || text.startsWith('//')) return '';
+  return text;
 }
 
 function getQueryValue(handler: Handler, name: string) {
@@ -239,8 +292,25 @@ function userCanReadAllScratchRecords(user: any, pdoc: any) {
   return userCanManageProblem(user, pdoc) || user?.hasPerm?.(PERM.PERM_READ_RECORD_CODE);
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function rewriteScratchProblemActionUrls(pdoc: any, handler: Handler, content: string) {
+  const tid = getQueryValue(handler, 'tid') as string | undefined;
+  const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
+  const pidPattern = escapeRegExp(String(pdoc.docId));
+  const markdownEditorLink = new RegExp(`\\((?:https?:\\/\\/[^)\\s]+)?[^)\\s]*\\/scratch\\/problem\\/${pidPattern}\\/editor(?:\\?[^)]*)?\\)`, 'g');
+  const htmlEditorHref = new RegExp(`href=(["'])(?:https?:\\/\\/[^"']+)?[^"']*\\/scratch\\/problem\\/${pidPattern}\\/editor(?:\\?[^"']*)?\\1`, 'g');
+  return content
+    .replace(markdownEditorLink, `(${editorUrl})`)
+    .replace(htmlEditorHref, (_raw, quote) => `href=${quote}${editorUrl}${quote}`);
+}
+
 function appendScratchProblemActions(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
-  if (!config.enabled || typeof pdoc.content !== 'string' || pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
+  if (!config.enabled || typeof pdoc.content !== 'string') return;
+  pdoc.content = rewriteScratchProblemActionUrls(pdoc, handler, pdoc.content);
+  if (pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
   const tid = getQueryValue(handler, 'tid') as string | undefined;
   const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
   const submissionsUrl = buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId });
@@ -262,7 +332,9 @@ ${managerLinks}`;
 }
 
 function appendScratchProblemActionsSafe(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
-  if (!config.enabled || typeof pdoc.content !== 'string' || pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
+  if (!config.enabled || typeof pdoc.content !== 'string') return;
+  pdoc.content = rewriteScratchProblemActionUrls(pdoc, handler, pdoc.content);
+  if (pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
   const tid = getQueryValue(handler, 'tid') as string | undefined;
   const editorUrl = buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid });
   const submissionsUrl = buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId });
@@ -790,6 +862,7 @@ export class ScratchProblemConfigHandler extends ScratchProblemHandler {
       judgeConfigText: stringifyJudgeConfig(this.scratchConfig.judgeConfig),
       editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
       exportUrl: this.url('scratch_problem_export', { pid: this.pdoc.docId }),
+      guideUrl: this.url('scratch_problem_guide'),
       templateUploadUrl: this.url('scratch_problem_template', { pid: this.pdoc.docId }),
       submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       templateDownloadUrl: this.scratchConfig.templatePath
@@ -822,6 +895,7 @@ export class ScratchProblemCreateHandler extends Handler {
       defaultContent: 'Scratch project assignment.\n\nUpload a .sb3 file to submit your work.',
       defaultMaxScore: this.pluginConfig.maxScore,
       importUrl: this.url('scratch_problem_import'),
+      guideUrl: this.url('scratch_problem_guide'),
     };
   }
 
@@ -859,6 +933,7 @@ export class ScratchProblemImportHandler extends Handler {
     this.response.template = 'scratch_problem_import.html';
     this.response.body = {
       createUrl: this.url('scratch_problem_create'),
+      guideUrl: this.url('scratch_problem_guide'),
     };
   }
 
@@ -953,6 +1028,7 @@ export class ScratchProblemEditHandler extends ScratchProblemHandler {
         ? this.url('scratch_problem_template', { pid: this.pdoc.docId })
         : '',
       exportUrl: this.url('scratch_problem_export', { pid: this.pdoc.docId }),
+      guideUrl: this.url('scratch_problem_guide'),
       editorWorkspaceUrl: ['editor', 'both'].includes(this.scratchConfig.submitMode)
         ? this.url('scratch_editor', { pid: this.pdoc.docId })
         : '',
@@ -1076,7 +1152,9 @@ export class ScratchProblemExportHandler extends ScratchProblemHandler {
 export class ScratchSubmitHandler extends ScratchProblemHandler {
   @post('source', Types.Range(['upload', 'editor']), true)
   @post('tid', Types.ObjectId, true)
-  async post(domainId: string, source: ScratchSubmitSource = 'upload', tid?: any) {
+  @post('returnUrl', Types.String, true)
+  @post('returnListUrl', Types.String, true)
+  async post(domainId: string, source: ScratchSubmitSource = 'upload', tid?: any, returnUrl = '', returnListUrl = '') {
     this.ensureScratchEnabled();
     const effectiveDomainId = this.pdoc.domainId || domainId;
     if (!['upload', 'both'].includes(this.scratchConfig.submitMode) && source === 'upload') throw new ValidationError('source');
@@ -1144,6 +1222,9 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       scratch: 0,
       tid: tid ? String(tid) : undefined,
     });
+    const contestReturn = await contestReturnInfo(this, effectiveDomainId, tid);
+    const safeReturnUrl = safeLocalUrl(returnUrl) || problemUrl;
+    const safeReturnListUrl = safeLocalUrl(returnListUrl) || contestReturn.returnListUrl;
     const previewUrl = this.url('scratch_submission_preview', { rid });
     const historyUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
     const scoreUrl = this.url('scratch_submission_score', { rid });
@@ -1175,19 +1256,16 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
     await Promise.all([
       HydroApi.problem.inc(effectiveDomainId, this.pdoc.docId, 'nSubmit', 1),
       HydroApi.domain.incUserInDomain(effectiveDomainId, this.user._id, 'nSubmit'),
-      tid && HydroApi.contest.updateStatus(effectiveDomainId, tid, this.user._id, rid, this.pdoc.docId),
     ]);
-    if (autoJudgeResult) {
-      await HydroApi.judge.end(effectiveDomainId, rid, {
-        status: recordPatch.status,
-        score: recordPatch.score,
-        time: 0,
-        memory: 0,
-        message: recordPatch.message,
-        case: recordPatch.testCases[0],
-        judger: 'scratch-auto',
-      });
-    }
+    await syncHydroScoreState(
+      effectiveDomainId,
+      rid,
+      this.pdoc.docId,
+      this.user._id,
+      tid,
+      recordPatch,
+      autoJudgeResult ? 'scratch-auto' : 'scratch',
+    );
     this.response.body = {
       ok: true,
       rid,
@@ -1198,7 +1276,10 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
       autoJudgeError,
       projectPath,
       validation,
-      redirectUrl: problemUrl,
+      redirectUrl: safeReturnUrl,
+      returnUrl: safeReturnUrl,
+      returnListUrl: safeReturnListUrl,
+      returnListLabel: safeReturnListUrl ? contestReturn.returnListLabel || '' : '',
       problemUrl,
       previewUrl,
       historyUrl,
@@ -1361,23 +1442,41 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       ...scorePatch,
       updatedAt: new Date(),
     });
-    await HydroApi.judge.end(effectiveDomainId, this.rdoc._id, {
+    const message = comment || `Manual Scratch score: ${score}/${maxScore}`;
+    const manualPatch = {
       status,
       score,
-      time: 0,
-      memory: 0,
-      message: comment || `Manual Scratch score: ${score}/${maxScore}`,
-      case: {
+      judgeTexts: [message],
+      testCases: [{
         id: 0,
         subtaskId: 0,
         status,
         score,
         time: 0,
         memory: 0,
-        message: comment || `Manual Scratch score: ${score}/${maxScore}`,
-      },
+        message,
+      }],
+      message,
+    };
+    await HydroApi.record.update(effectiveDomainId, this.rdoc._id, {
+      status,
+      score,
+      time: 0,
+      memory: 0,
+      progress: 100,
+      judgeAt: new Date(),
       judger: this.user._id,
+      source: 'scratch',
     });
+    await syncHydroScoreState(
+      effectiveDomainId,
+      this.rdoc._id,
+      this.rdoc.pid,
+      this.rdoc.uid,
+      this.rdoc.contest,
+      manualPatch,
+      this.user._id,
+    );
     this.response.body = {
       rid: this.rdoc._id,
       score,
@@ -1450,6 +1549,15 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
   }
 }
 
+export class ScratchProblemGuideHandler extends Handler {
+  async get() {
+    const guidePath = join(__dirname, '..', 'docs', 'teacher-judge-config-guide.md');
+    this.response.body = await readFile(guidePath);
+    this.response.type = 'text/markdown; charset=utf-8';
+    this.response.disposition = 'attachment; filename="scratch-problem-testpoint-guide.md"';
+  }
+}
+
 export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
   const bindConfig = (klass: any) => class extends klass {
     pluginConfig = pluginConfig;
@@ -1458,6 +1566,7 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
   ctx.Route('scratch_problem_import', '/scratch/problem/import', bindConfig(ScratchProblemImportHandler), PERM.PERM_CREATE_PROBLEM);
   ctx.Route('scratch_problem_edit', '/scratch/problem/:pid/edit', bindConfig(ScratchProblemEditHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_config', '/scratch/problem/:pid/config', bindConfig(ScratchProblemConfigHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_problem_guide', '/scratch/problem/guide', ScratchProblemGuideHandler, PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_export', '/scratch/problem/:pid/export', bindConfig(ScratchProblemExportHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_template', '/scratch/problem/:pid/template', bindConfig(ScratchProblemTemplateHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_statement', '/scratch/problem/:pid/statement', bindConfig(ScratchProblemStatementHandler), PERM.PERM_VIEW_PROBLEM);

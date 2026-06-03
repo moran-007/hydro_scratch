@@ -3,27 +3,27 @@
 This plugin is packaged as:
 
 ```text
-release/hydro-plugin-scratch-0.6.5.tgz
+release/hydro-plugin-scratch-0.6.7.tgz
 ```
 
 For an existing installation, use the delta update package instead:
 
 ```text
-release/hydro-plugin-scratch-update-0.6.5.tgz
+release/hydro-plugin-scratch-update-0.6.7.tgz
 ```
 
 The delta package contains plugin code, templates, docs, scripts, and the modified Scratch editor `index.html` / `gui.js`. It does not include the unchanged Scratch asset library.
 
 Deploy it on the production server as the same Linux user that runs Hydro.
 
-Version `0.6.5` moves Scratch OJ controls into the embedded editor: fullscreen replaces the Tutorials slot, settings live in the Scratch Settings menu, the problem panel is draggable, and the latest score chip appears beside Debug. It also keeps the language-menu anti-jump fix and previous judge/package features.
+Version `0.6.7` fixes contest/homework Scratch entry links that lost the `tid` context when an existing problem statement already contained the Scratch action marker. The editor also recovers `tid` from the problem-page referer as a fallback, so auto-judged Scratch submissions can stay attached to the contest scoreboard.
 
 ## 1. Upload Package
 
 From your local machine:
 
 ```bash
-scp release/hydro-plugin-scratch-0.6.5.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.6.7.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -33,7 +33,7 @@ On the server:
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.5.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
 ```
 
 By default the script installs to:
@@ -45,7 +45,7 @@ By default the script installs to:
 Override if your Hydro uses another addon directory:
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.5.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
 ```
 
 ## 3. Delta Update
@@ -53,7 +53,7 @@ HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plu
 If the full plugin and dependencies are already installed, the delta package can be extracted over the existing addon:
 
 ```bash
-tar -xzf /tmp/hydro-plugin-scratch-update-0.6.5.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.7.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
 ```
 
 Then refresh production dependencies if you are upgrading from an older version:

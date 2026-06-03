@@ -8,7 +8,7 @@ TARGET_DIR="$ADDONS_DIR/$PLUGIN_NAME"
 BACKUP_DIR="$ADDONS_DIR/${PLUGIN_NAME}.bak.$(date +%Y%m%d%H%M%S)"
 
 if [[ -z "$PACKAGE_PATH" ]]; then
-  echo "Usage: $0 /path/to/hydro-plugin-scratch-0.6.5.tgz" >&2
+  echo "Usage: $0 /path/to/hydro-plugin-scratch-0.6.7.tgz" >&2
   exit 2
 fi
 

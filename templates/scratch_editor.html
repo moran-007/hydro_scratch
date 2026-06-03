@@ -61,6 +61,8 @@
         </div>
         <div class="score-modal__actions">
           <a class="score-modal__link" id="score-modal-record" href="" hidden>查看提交记录</a>
+          <a class="score-modal__link" id="score-modal-problem" href="">返回题目</a>
+          <a class="score-modal__link" id="score-modal-list" href="" hidden>返回列表</a>
           <button class="score-modal__button" id="score-modal-ok" type="button">继续答题</button>
         </div>
       </div>
@@ -627,6 +629,11 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
   const PREVIEW_URL = '{{ previewUrl }}';
   const SUBMISSIONS_URL = '{{ submissionsUrl }}';
   const TEMPLATE_URL = '{{ templateUrl }}';
+  const SERVER_RETURN_URL = '{{ returnUrl }}';
+  const SERVER_RETURN_LIST_URL = '{{ returnListUrl }}';
+  const RETURN_LIST_LABEL = '{{ returnListLabel or "返回列表" }}';
+  const RETURN_URL = SERVER_RETURN_URL || localReferrerPath() || PROBLEM_URL;
+  const RETURN_LIST_URL = SERVER_RETURN_LIST_URL || contextListFromReferrer();
   const TID = '{{ tid }}';
   const THEME_KEY = 'hydro-scratch-theme-{{ pdoc.docId }}';
   const PANEL_KEY = 'hydro-scratch-problem-panel-{{ pdoc.docId }}';
@@ -663,6 +670,8 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
   const scoreModalValue = document.getElementById('score-modal-value');
   const scoreModalMax = document.getElementById('score-modal-max');
   const scoreModalRecord = document.getElementById('score-modal-record');
+  const scoreModalProblem = document.getElementById('score-modal-problem');
+  const scoreModalList = document.getElementById('score-modal-list');
   const pendingExports = new Map();
   let initialProjectLoaded = false;
   let resizing = null;
@@ -676,6 +685,29 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
 
   function targetOrigin() {
     return EDITOR_ORIGIN || window.location.origin;
+  }
+
+  function sameOriginPath(value) {
+    if (!value) return '';
+    try {
+      const url = new URL(value, window.location.href);
+      if (url.origin !== window.location.origin) return '';
+      return url.pathname + url.search + url.hash;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  function localReferrerPath() {
+    return sameOriginPath(document.referrer);
+  }
+
+  function contextListFromReferrer() {
+    const path = localReferrerPath();
+    if (!path) return '';
+    if (/\/(?:contest)\/[0-9a-f]{24}\/problems/i.test(path)) return path;
+    if (/\/(?:homework|training)\/[0-9a-f]{24}(?:[/?#]|$)/i.test(path)) return path;
+    return '';
   }
 
   function setStatus(message, state) {
@@ -910,6 +942,8 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
     form.append(formField, blob, project.filename || 'project.sb3');
     if (source === 'submit') form.append('source', 'editor');
     if (source === 'submit' && TID) form.append('tid', TID);
+    if (source === 'submit' && RETURN_URL) form.append('returnUrl', RETURN_URL);
+    if (source === 'submit' && RETURN_LIST_URL) form.append('returnListUrl', RETURN_LIST_URL);
     const response = await fetch(url, {
       method: 'POST',
       body: form,
@@ -985,7 +1019,11 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
       maxScore: maxScore,
       status: status,
       passed: passed,
-      recordUrl: result && result.recordUrl
+      recordUrl: result && result.recordUrl,
+      problemUrl: (result && (result.problemUrl || result.redirectUrl)) || PROBLEM_URL,
+      returnUrl: (result && (result.returnUrl || result.redirectUrl)) || RETURN_URL || PROBLEM_URL,
+      returnListUrl: (result && result.returnListUrl) || RETURN_LIST_URL,
+      returnListLabel: (result && result.returnListLabel) || RETURN_LIST_LABEL
     };
   }
 
@@ -1025,6 +1063,18 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
       scoreModalRecord.hidden = false;
     } else {
       scoreModalRecord.hidden = true;
+    }
+    if (scoreModalProblem) {
+      scoreModalProblem.href = summary.returnUrl || summary.problemUrl || PROBLEM_URL;
+    }
+    if (scoreModalList) {
+      if (summary.returnListUrl) {
+        scoreModalList.href = summary.returnListUrl;
+        scoreModalList.textContent = summary.returnListLabel || '返回列表';
+        scoreModalList.hidden = false;
+      } else {
+        scoreModalList.hidden = true;
+      }
     }
     scoreModal.hidden = false;
   }

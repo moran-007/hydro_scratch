@@ -1,12 +1,28 @@
 # Hydro Scratch 插件安装与更新
 
-当前版本：`0.6.5`
+当前版本：`0.6.7`
 
 推荐文件：
 
-- 首次安装：`release/hydro-plugin-scratch-0.6.5.tgz`
-- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.5.zip`
-- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.5.tgz`
+- 首次安装：`release/hydro-plugin-scratch-0.6.7.tgz`
+- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.7.zip`
+- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.7.tgz`
+
+## 本次更新 0.6.7
+
+- 修复比赛/作业题面中已存在 Scratch 动作区时，`进入 Scratch 答题页面` 旧链接不会自动携带 `tid` 的问题。
+- Scratch 编辑器入口增加来源页兜底识别：如果 URL 没有 `tid`，会从同域题面 Referer 的 `tid` 中恢复比赛上下文。
+- 线上验证：直接带 `tid` 的自动测评提交可以写入比赛题目列表和榜单；本补丁修复学生正常点击题面入口时丢失 `tid` 的源头。
+- Scratch GUI 静态资源版本号更新为 `gui.js?v=0.6.7`。
+
+## 本次更新 0.6.6
+
+- Scratch 提交后统一同步 Hydro 题目状态，训练页可读取最新自动/手动测评结果。
+- 比赛和作业提交会同步写入对应 journal，提交后弹窗提供返回题目与返回列表入口。
+- 手动评分增加 record 保底写回，并继续通过 Hydro judge 回调刷新题目、比赛和作业成绩。
+- Scratch 内部题目窗口支持拖动和右下角调整大小。
+- 教师配置、编辑、创建和导入页新增“题目及测试点格式文档”下载链接。
+- Scratch GUI 静态资源版本号更新为 `gui.js?v=0.6.6`。
 
 ## 本次更新 0.6.5
 
@@ -79,7 +95,7 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 上传标准插件包：
 
 ```bash
-scp release/hydro-plugin-scratch-0.6.5.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.6.7.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -87,13 +103,13 @@ scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.5.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
 ```
 
 如果 Hydro 插件目录不是默认路径：
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.5.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
 ```
 
 ## 覆盖更新
@@ -101,13 +117,13 @@ HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plu
 Windows 可使用：
 
 ```text
-release/hydro-plugin-scratch-update-0.6.5.zip
+release/hydro-plugin-scratch-update-0.6.7.zip
 ```
 
 Linux 可使用：
 
 ```bash
-tar -xzf /tmp/hydro-plugin-scratch-update-0.6.5.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.7.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
 ```
 
 然后刷新生产依赖并重启 Hydro：
@@ -128,7 +144,7 @@ pm2 restart hydro
 4. 点击 `保存草稿`，刷新页面后确认能恢复作品。
 5. 修改作品后点击 `提交测评`，确认页面弹出成绩弹窗，并显示本次成绩和测评记录入口。
 6. 重新进入同一题目，确认仍能加载最近草稿。
-7. 检查 `public/scratch-editor/index.html` 中资源版本为 `gui.js?v=0.6.5`。
+7. 检查 `public/scratch-editor/index.html` 中资源版本为 `gui.js?v=0.6.7`。
 
 ## 注意事项
 

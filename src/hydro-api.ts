@@ -82,6 +82,7 @@ export const HydroApi = {
     add: (...args: any[]) => (ProblemModel as any).add(...args),
     edit: (...args: any[]) => (ProblemModel as any).edit(...args),
     get: (...args: any[]) => (ProblemModel as any).get(...args),
+    updateStatus: (...args: any[]) => (ProblemModel as any).updateStatus?.(...args),
     async getList(domainId: string, problemIds: any[]) {
       const ids = uniqueProblemIds(problemIds)
         .map((id) => Number(id))
