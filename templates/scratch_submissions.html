@@ -1,31 +1,47 @@
 {% extends "layout/basic.html" %}
 {% block content %}
+{% if pdoc %}
 {{ set(UiContext, 'pdoc', pdoc) }}
+{% endif %}
 <div class="section scratch-submissions">
   <div class="section__header scratch-submissions__header">
     <div>
       <h1 class="section__title">
-        {% if canManage %}
+        {% if isGlobalQueue %}
+        Scratch 待批改队列
+        {% elif canManage %}
         Scratch 批改队列
         {% else %}
         我的 Scratch 提交
         {% endif %}
       </h1>
       <p class="scratch-submissions__hint">
-        当前显示 {{ submissions.length }} 条，共 {{ totalSubmissions }} 条。
+        当前显示 {{ submissions.length }} 条，共 {{ totalSubmissions }} 条，待评分 {{ pendingCount }} 条。
       </p>
     </div>
     <div class="section__tools scratch-submissions__tools">
+      {% if isGlobalQueue %}
+      <a class="rounded button" href="{{ problemListUrl }}">题库</a>
+      <a class="rounded button" href="{{ recordListUrl }}">Hydro 待处理记录</a>
+      {% else %}
       <a class="rounded button" href="{{ problemUrl }}">题目</a>
       <a class="rounded button" href="{{ editorUrl }}">Scratch 编辑器</a>
       {% if canManage %}
+      <a class="rounded primary button" href="{{ reviewQueueUrl }}">全部待批改</a>
       <a class="rounded button" href="{{ editUrl }}">编辑题目</a>
       <a class="rounded button" href="{{ configUrl }}">设置</a>
+      {% endif %}
       {% endif %}
     </div>
   </div>
   <div class="section__body">
     <form class="scratch-submissions__filters" method="get">
+      {% if isGlobalQueue %}
+      <label class="scratch-submissions__filter-wide">
+        题目
+        <input name="problem" value="{{ problemFilter }}" placeholder="按题号或题目名称筛选">
+      </label>
+      {% endif %}
       <label class="scratch-submissions__filter-wide">
         比赛 / 作业名称
         <input name="contest" value="{{ contestFilter }}" placeholder="按比赛名称筛选全场提交">
@@ -48,7 +64,7 @@
         </select>
       </label>
       <button class="rounded primary button" type="submit">查询</button>
-      <a class="rounded button" href="{{ url('scratch_problem_submissions', pid=pdoc.docId) }}">重置</a>
+      <a class="rounded button" href="{{ resetUrl }}">重置</a>
     </form>
 
     {% if contestFilter %}
@@ -117,7 +133,7 @@
             <td>
               <div class="scratch-submissions__actions">
                 <a class="rounded button small" href="{{ item.previewUrl }}">预览</a>
-                {% if canScore %}
+                {% if item.canScore %}
                 <a class="rounded primary button small" href="{{ item.scoreUrl }}">评分</a>
                 {% endif %}
               </div>
@@ -160,7 +176,7 @@
 
 .scratch-submissions__filters {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) minmax(120px, 1fr) auto auto;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
   align-items: end;
   margin: 0 0 12px;
@@ -176,6 +192,10 @@
   gap: 4px;
   color: #666;
   font-size: 13px;
+}
+
+.scratch-submissions__filter-wide {
+  min-width: 220px;
 }
 
 .scratch-submissions__filters input,

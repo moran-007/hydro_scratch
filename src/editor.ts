@@ -8,6 +8,7 @@ import {
   param,
 } from 'hydrooj';
 import { buildScratchEditorUrl } from './assets';
+import { pluginEnabledForDomain } from './config';
 import { ScratchValidationError } from './errors';
 import { HydroApi } from './hydro-api';
 import { ScratchModel } from './model';
@@ -121,6 +122,7 @@ abstract class ScratchEditorBaseHandler extends Handler {
 
   @param('pid', Types.ProblemId)
   async prepare(domainId: string, pid: number) {
+    if (!pluginEnabledForDomain(this.pluginConfig, domainId)) throw new NotFoundError('Scratch plugin');
     this.pdoc = await HydroApi.problem.get(domainId, pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${pid}`);
     this.scratchConfig = await ScratchModel.getProblemConfig(domainId, this.pdoc.docId, this.pluginConfig);

@@ -3,27 +3,27 @@
 This plugin is packaged as:
 
 ```text
-release/hydro-plugin-scratch-0.6.7.tgz
+release/hydro-plugin-scratch-0.6.9.tgz
 ```
 
 For an existing installation, use the delta update package instead:
 
 ```text
-release/hydro-plugin-scratch-update-0.6.7.tgz
+release/hydro-plugin-scratch-update-0.6.9.tgz
 ```
 
 The delta package contains plugin code, templates, docs, scripts, and the modified Scratch editor `index.html` / `gui.js`. It does not include the unchanged Scratch asset library.
 
 Deploy it on the production server as the same Linux user that runs Hydro.
 
-Version `0.6.7` fixes contest/homework Scratch entry links that lost the `tid` context when an existing problem statement already contained the Scratch action marker. The editor also recovers `tid` from the problem-page referer as a fallback, so auto-judged Scratch submissions can stay attached to the contest scoreboard.
+Version `0.6.9` fixes disabled-domain creation entry visibility and adds a domain-wide Scratch manual review queue at `/scratch/review`. New manual-only submissions use Hydro's Waiting status so they are also visible in the native pending record filter.
 
 ## 1. Upload Package
 
 From your local machine:
 
 ```bash
-scp release/hydro-plugin-scratch-0.6.7.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.6.9.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -33,7 +33,7 @@ On the server:
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.9.tgz
 ```
 
 By default the script installs to:
@@ -45,7 +45,7 @@ By default the script installs to:
 Override if your Hydro uses another addon directory:
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.9.tgz
 ```
 
 ## 3. Delta Update
@@ -53,7 +53,7 @@ HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plu
 If the full plugin and dependencies are already installed, the delta package can be extracted over the existing addon:
 
 ```bash
-tar -xzf /tmp/hydro-plugin-scratch-update-0.6.7.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.9.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
 ```
 
 Then refresh production dependencies if you are upgrading from an older version:
@@ -84,6 +84,11 @@ hydrooj addon list
 
 Then open Hydro and confirm:
 
+- With `enabledDomains` empty, existing Scratch behavior is unchanged in every domain.
+- With `enabledDomains` set to selected URL domain IDs, the `Scratch Problem` creation entry and Scratch problem actions only appear in those domains.
+- Direct Scratch plugin routes return not found in domains outside `enabledDomains`.
+- `/scratch/review` opens a domain-wide Scratch review queue and defaults to pending submissions.
+- A new manual-only Scratch submission appears in Hydro's native pending record filter.
 - Problem creation page shows `Scratch Problem`.
 - `/scratch/problem/:pid/config` opens for a Scratch problem.
 - The Scratch config/edit page shows `Export Package`.

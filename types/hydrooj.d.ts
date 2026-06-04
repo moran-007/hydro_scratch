@@ -38,10 +38,10 @@ declare module 'hydrooj' {
   export const RecordModel: any;
   export const DomainModel: any;
   export const ContestModel: any;
+  export const MessageModel: any;
   export const JudgeResultCallbackContext: any;
   export class ValidationError extends Error {}
   export class ForbiddenError extends Error {}
   export class NotFoundError extends Error {}
   export class FileTooLargeError extends Error {}
 }
-

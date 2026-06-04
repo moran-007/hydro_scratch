@@ -11,6 +11,7 @@ export const DEFAULT_DISABLED_EXTENSIONS = [
 ];
 
 export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
+  enabledDomains: [],
   storagePrefix: 'scratch',
   maxProjectSizeMB: 20,
   maxUnpackedSizeMB: 80,
@@ -23,6 +24,38 @@ export const DEFAULT_PLUGIN_CONFIG: PluginConfig = {
   scratchEditorOrigin: '',
   scratchAssetHost: '/scratch-assets',
 };
+
+export function normalizeEnabledDomains(value: unknown): string[] {
+  const items = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[,\n]/)
+      : [];
+  return [...new Set(items
+    .map((item) => String(item || '').trim().toLowerCase())
+    .filter(Boolean))];
+}
+
+export function pluginEnabledForDomain(
+  pluginConfig: Pick<PluginConfig, 'enabledDomains'>,
+  domainId: unknown,
+): boolean {
+  const enabledDomains = normalizeEnabledDomains(pluginConfig.enabledDomains);
+  if (!enabledDomains.length) return true;
+  const normalizedDomainId = String(domainId || '').trim().toLowerCase();
+  return Boolean(normalizedDomainId) && enabledDomains.includes(normalizedDomainId);
+}
+
+export function pluginEnabledForHandlerDomain(
+  pluginConfig: Pick<PluginConfig, 'enabledDomains'>,
+  handler: any,
+): boolean {
+  const domainId = handler?.args?.domainId
+    || handler?.UiContext?.domainId
+    || handler?.domain?._id
+    || handler?.domain?.docId;
+  return pluginEnabledForDomain(pluginConfig, domainId);
+}
 
 export function defaultProblemConfig(domainId: string, problemId: number, pluginConfig: PluginConfig): ScratchProblemConfig {
   const now = new Date();

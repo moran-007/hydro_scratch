@@ -1,12 +1,41 @@
 # Hydro Scratch 插件安装与更新
 
-当前版本：`0.6.7`
+当前版本：`0.6.9`
 
 推荐文件：
 
-- 首次安装：`release/hydro-plugin-scratch-0.6.7.tgz`
-- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.7.zip`
-- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.7.tgz`
+- 首次安装：`release/hydro-plugin-scratch-0.6.9.tgz`
+- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.9.zip`
+- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.9.tgz`
+
+## 本次更新 0.6.9
+
+- 修复未启用域仍可能显示“Scratch Problem”创建标签的问题，创建入口会优先读取 Hydro 页面上下文中的域 ID。
+- 新增域级 Scratch 待批改队列 `/scratch/review`，老师无需先进入具体题目即可查看当前域内所有有权限评分的待处理提交。
+- 域级队列默认只显示待评分提交，并支持按题号、题目名称、比赛或作业名称、来源和评分状态筛选。
+- 单题 Scratch 提交列表新增“全部待批改”入口，评分完成后可以返回原筛选队列继续处理。
+- 新提交的手动测评题和自动测评失败转人工处理的题目使用 Hydro Waiting 状态，因此可在 Hydro 原生测评记录的“待处理”筛选中查询。
+- 保留旧版待评分记录兼容逻辑，升级不会丢失原有 Scratch 提交或评分入口。
+
+详细说明：`docs/scratch-manual-review-0.6.9.md`
+
+## 本次更新 0.6.8
+
+- 新增插件级 `enabledDomains` 域作用范围配置，由系统管理员决定 Scratch 插件在哪些 Hydro 域中生效。
+- `enabledDomains` 为空时保持原行为，插件在所有域生效，升级后不会影响现有站点。
+- 配置域列表后，未启用域会隐藏“Scratch Problem”新建入口，不再向题面注入 Scratch 操作入口，并阻止编辑器、草稿、提交、预览、评分、导入导出和配置文档等插件路由。
+- 从作用范围移除域不会删除已有 Scratch 题目、提交、草稿或存储文件，重新加入后可以继续使用。
+- Scratch 编辑器内部功能和 `gui.js?v=0.6.7` 静态资源保持不变。
+
+管理员配置示例：
+
+```yaml
+enabledDomains:
+  - scratch
+  - classroom
+```
+
+请填写 URL `/d/<域ID>/` 中的域 ID，例如 `http://moran007.top/d/scratch/` 对应 `scratch`。保存插件配置后，Hydro 会重新加载插件配置；如部署环境未自动刷新，请重启 Hydro。
 
 ## 本次更新 0.6.7
 
@@ -95,7 +124,7 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 上传标准插件包：
 
 ```bash
-scp release/hydro-plugin-scratch-0.6.7.tgz <user>@<server>:/tmp/
+scp release/hydro-plugin-scratch-0.6.9.tgz <user>@<server>:/tmp/
 scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>:/tmp/
 ```
 
@@ -103,13 +132,13 @@ scp scripts/install-production.sh scripts/rollback-production.sh <user>@<server>
 
 ```bash
 chmod +x /tmp/install-production.sh /tmp/rollback-production.sh
-/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
+/tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.9.tgz
 ```
 
 如果 Hydro 插件目录不是默认路径：
 
 ```bash
-HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.7.tgz
+HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plugin-scratch-0.6.9.tgz
 ```
 
 ## 覆盖更新
@@ -117,13 +146,13 @@ HYDRO_ADDONS_DIR=/path/to/hydro/addons /tmp/install-production.sh /tmp/hydro-plu
 Windows 可使用：
 
 ```text
-release/hydro-plugin-scratch-update-0.6.7.zip
+release/hydro-plugin-scratch-update-0.6.9.zip
 ```
 
 Linux 可使用：
 
 ```bash
-tar -xzf /tmp/hydro-plugin-scratch-update-0.6.7.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.9.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
 ```
 
 然后刷新生产依赖并重启 Hydro：
@@ -138,13 +167,18 @@ pm2 restart hydro
 
 ## 验证
 
-1. 打开普通 Hydro 题面，确认能看到 `进入 Scratch 答题页面`。
-2. 进入 Scratch 答题页，确认左侧题面可收起、展开、拖拽调整宽度。
-3. 点击 Scratch 顶栏的 `查看题目`，确认 Scratch 内部题目面板打开，图片能正常显示。
-4. 点击 `保存草稿`，刷新页面后确认能恢复作品。
-5. 修改作品后点击 `提交测评`，确认页面弹出成绩弹窗，并显示本次成绩和测评记录入口。
-6. 重新进入同一题目，确认仍能加载最近草稿。
-7. 检查 `public/scratch-editor/index.html` 中资源版本为 `gui.js?v=0.6.7`。
+1. 保持 `enabledDomains` 为空，确认所有域中的现有 Scratch 功能与升级前一致。
+2. 将 `enabledDomains` 设置为指定域 ID，确认只有这些域显示 `Scratch Problem` 新建入口和题面 Scratch 操作入口。
+3. 在未启用域中直接访问 `/scratch/problem/create` 或 Scratch 编辑器地址，确认返回未找到。
+4. 在启用域中打开普通 Hydro 题面，确认能看到 `进入 Scratch 答题页面`。
+5. 进入 Scratch 答题页，确认左侧题面可收起、展开、拖拽调整宽度。
+6. 点击 Scratch 顶栏的 `查看题目`，确认 Scratch 内部题目面板打开，图片能正常显示。
+7. 点击 `保存草稿`，刷新页面后确认能恢复作品。
+8. 修改作品后点击 `提交测评`，确认页面弹出成绩弹窗，并显示本次成绩和测评记录入口。
+9. 重新进入同一题目，确认仍能加载最近草稿。
+10. 检查 `public/scratch-editor/index.html` 中资源版本仍为 `gui.js?v=0.6.7`。
+11. 提交一道人工作评分 Scratch 题，确认 `/scratch/review` 无需进入具体题目即可显示该待评分提交。
+12. 在 Hydro 测评记录中筛选“待处理”，确认新提交的手动测评记录可以查询。
 
 ## 注意事项
 

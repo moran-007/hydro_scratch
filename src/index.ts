@@ -1,5 +1,5 @@
-import { Schema, definePlugin } from 'hydrooj';
-import { DEFAULT_PLUGIN_CONFIG } from './config';
+import { PERM, Schema, definePlugin } from 'hydrooj';
+import { DEFAULT_PLUGIN_CONFIG, normalizeEnabledDomains, pluginEnabledForHandlerDomain } from './config';
 import { applyHandlers } from './http';
 import { ScratchModel } from './model';
 import type { PluginConfig } from './types';
@@ -14,6 +14,7 @@ function normalizePluginConfig(config: Partial<PluginConfig> = {}): PluginConfig
   return {
     ...DEFAULT_PLUGIN_CONFIG,
     ...config,
+    enabledDomains: normalizeEnabledDomains(config.enabledDomains),
     storagePrefix: (config.storagePrefix || DEFAULT_PLUGIN_CONFIG.storagePrefix).replace(/^\/+|\/+$/g, ''),
     maxProjectSizeMB: Number(config.maxProjectSizeMB || DEFAULT_PLUGIN_CONFIG.maxProjectSizeMB),
     maxUnpackedSizeMB: Number(config.maxUnpackedSizeMB || DEFAULT_PLUGIN_CONFIG.maxUnpackedSizeMB),
@@ -48,9 +49,18 @@ function registerScratchLanguage() {
   };
 }
 
+function canOpenScratchReviewQueue(pluginConfig: PluginConfig, handler: any) {
+  return pluginEnabledForHandlerDomain(pluginConfig, handler)
+    && Boolean(
+      handler?.user?.hasPerm?.(PERM.PERM_EDIT_PROBLEM)
+      || handler?.user?.hasPerm?.(PERM.PERM_EDIT_PROBLEM_SELF),
+    );
+}
+
 export default definePlugin<PluginConfig>({
   name: 'hydro-plugin-scratch',
   schema: Schema.object({
+    enabledDomains: Schema.array(Schema.string()).default(DEFAULT_PLUGIN_CONFIG.enabledDomains).description('Domain IDs where the Scratch plugin is enabled. Empty enables all domains.'),
     storagePrefix: Schema.string().default(DEFAULT_PLUGIN_CONFIG.storagePrefix).description('Storage path prefix for Scratch projects'),
     maxProjectSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxProjectSizeMB).min(1).description('Maximum .sb3 upload size in MB'),
     maxUnpackedSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxUnpackedSizeMB).min(1).description('Maximum unpacked .sb3 size in MB'),
@@ -67,7 +77,16 @@ export default definePlugin<PluginConfig>({
     const config = normalizePluginConfig(rawConfig);
     registerScratchLanguage();
     applyHandlers(ctx, config);
-    ctx.injectUI?.('ProblemAdd', 'scratch_problem_create', { icon: 'edit', text: 'Scratch Problem' });
+    const enabledDomainChecker = (handler: any) => pluginEnabledForHandlerDomain(config, handler);
+    const reviewQueueChecker = (handler: any) => canOpenScratchReviewQueue(config, handler);
+    ctx.injectUI?.(
+      'ProblemAdd',
+      'scratch_problem_create',
+      { icon: 'edit', text: 'Scratch Problem' },
+      enabledDomainChecker,
+    );
+    ctx.injectUI?.('Nav', 'scratch_review_queue', { prefix: 'scratch_review_queue' }, reviewQueueChecker);
+    ctx.injectUI?.('DomainManage', 'scratch_review_queue', { family: 'Content', icon: 'check' }, reviewQueueChecker);
     ctx.i18n?.load?.('zh', {
       'Scratch Problem': 'Scratch 题目',
       'Create Scratch Problem': '创建 Scratch 题目',
@@ -86,6 +105,7 @@ export default definePlugin<PluginConfig>({
       'Open Score Page': '打开评分页',
       'Back to Scratch submissions': '返回 Scratch 提交列表',
       'Direct scoring URL': '直接评分地址',
+      scratch_review_queue: 'Scratch 批改',
     });
     ctx.i18n?.load?.('en', {
       'Scratch Problem': 'Scratch Problem',
@@ -105,6 +125,7 @@ export default definePlugin<PluginConfig>({
       'Open Score Page': 'Open Score Page',
       'Back to Scratch submissions': 'Back to Scratch submissions',
       'Direct scoring URL': 'Direct scoring URL',
+      scratch_review_queue: 'Scratch Review',
     });
     await ScratchModel.ensureIndexes();
   },

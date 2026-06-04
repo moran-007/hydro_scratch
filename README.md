@@ -11,6 +11,7 @@ hydro的手动测评及出题插件。
 - Submit `.sb3` projects from the editor.
 - Store submissions as Hydro records with a downloadable code attachment.
 - Preview, download, list, manually score, and auto-judge Scratch submissions.
+- Review all pending manual Scratch submissions in a domain from one queue, with optional problem filtering.
 - Configure static checks, structure checks, and dynamic checks through `judgeConfig`.
 - Limit required blocks to a target sprite and script order with `structureChecks`.
 - Run Scratch VM checks for variables and sprite positions with `dynamicChecks`.
@@ -20,6 +21,7 @@ hydro的手动测评及出题插件。
 - Keep Hydro model calls behind `src/hydro-api.ts`, making future Hydro API changes easier to patch.
 - Bundle a Scratch GUI build plus Scratch library assets for offline/self-hosted deployments.
 - Serve Scratch library assets through `/scratch-assets`, with remote fallback for missing assets.
+- Let system administrators limit the plugin to selected Hydro domains without changing existing Scratch problem data.
 
 ## Install
 
@@ -30,6 +32,27 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 ```
 
 Then restart Hydro.
+
+## Domain Scope
+
+System administrators can limit where the plugin is active through the plugin configuration:
+
+```yaml
+enabledDomains:
+  - scratch
+  - classroom
+```
+
+- Use the domain ID from the URL, such as `scratch` in `/d/scratch/`, rather than the displayed domain name.
+- An empty or missing `enabledDomains` list keeps the previous behavior and enables the plugin in every domain.
+- Domain IDs are trimmed and compared case-insensitively.
+- In a disabled domain, the `Scratch Problem` creation entry, problem-page Scratch actions, editor, draft, submit, preview, scoring, import, export, and guide routes are unavailable.
+- Existing Scratch problems, submissions, drafts, and stored files are not deleted when a domain is removed from the list.
+- `/scratch-assets` remains globally available because it is shared static editor infrastructure.
+
+Administrator guide: `docs/scratch-domain-scope-0.6.8.md`
+
+Manual review guide: `docs/scratch-manual-review-0.6.9.md`
 
 ## Package
 
@@ -51,6 +74,7 @@ POST /scratch/problem/:pid/config
 GET  /scratch/problem/:pid/export
 GET  /scratch/problem/:pid/editor
 GET  /scratch/problem/:pid/submissions
+GET  /scratch/review
 GET  /scratch/problem/:pid/draft
 POST /scratch/problem/:pid/draft
 GET  /scratch/problem/:pid/draft/project
@@ -68,6 +92,8 @@ POST /scratch/submission/:rid/score
 - Visiting `/p/:pid` keeps the normal Hydro problem page and adds a Scratch online editor link to the statement.
 - Teachers can score from `Scratch Problem -> Submissions -> Preview / Score` or directly from `/scratch/submission/:rid/preview`.
 - Teachers can use the direct scoring page `/scratch/submission/:rid/score` when they need a separate manual scoring entry.
+- Teachers can open `/scratch/review` to see pending manual Scratch submissions across the current domain, then filter by problem, contest/homework name, source, or scoring state.
+- New manual-only submissions use Hydro's Waiting status, so they also appear in Hydro's native pending record filter.
 - Students can open `Scratch Problem -> My Submissions` to view previous Scratch projects, downloads, previews, and Hydro record links.
 - Contest/homework entries preserve `tid` when launched from the Hydro problem page, so manual scoring updates the corresponding scoreboard status.
 - Static mode runs configured static and structure checks immediately after submit and writes the score back to Hydro records.

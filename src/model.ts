@@ -66,6 +66,10 @@ export class ScratchModel {
     return submissionColl.find({ domainId, problemId, ...query }).sort({ createdAt: -1 });
   }
 
+  static getDomainSubmissions(domainId: string, query: Record<string, unknown> = {}) {
+    return submissionColl.find({ domainId, ...query }).sort({ createdAt: -1 });
+  }
+
   static async saveDraft(meta: ScratchDraftMeta) {
     await draftColl.updateOne(
       { domainId: meta.domainId, problemId: meta.problemId, userId: meta.userId },
@@ -87,6 +91,8 @@ export class ScratchModel {
       ),
       db.ensureIndexes(
         submissionColl,
+        { key: { domainId: 1, createdAt: -1 }, name: 'domainList' },
+        { key: { domainId: 1, scored: 1, createdAt: -1 }, name: 'domainScoreList' },
         { key: { domainId: 1, problemId: 1, createdAt: -1 }, name: 'problemList' },
         { key: { domainId: 1, rid: 1 }, unique: true, name: 'record' },
         { key: { domainId: 1, userId: 1, problemId: 1, createdAt: -1 }, name: 'userProblem' },

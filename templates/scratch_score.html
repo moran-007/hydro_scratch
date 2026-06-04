@@ -48,6 +48,9 @@
       </div>
       <div class="section__body">
         <form id="scratch-score-form" action="{{ scoreUrl }}" method="post">
+          {% if returnUrl %}
+          <input type="hidden" name="returnUrl" value="{{ returnUrl }}">
+          {% endif %}
           {{ form.form_text({
               label:'Score',
               name:'score',

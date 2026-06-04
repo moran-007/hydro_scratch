@@ -297,6 +297,7 @@ export interface ScratchValidationSummary {
 }
 
 export interface PluginConfig {
+  enabledDomains: string[];
   storagePrefix: string;
   maxProjectSizeMB: number;
   maxUnpackedSizeMB: number;

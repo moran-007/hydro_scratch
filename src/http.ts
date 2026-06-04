@@ -15,6 +15,7 @@ import {
   post,
 } from 'hydrooj';
 import { ScratchAssetProxyHandler, buildScratchEditorUrl } from './assets';
+import { pluginEnabledForDomain } from './config';
 import {
   ScratchDraftLoadHandler,
   ScratchDraftProjectHandler,
@@ -39,9 +40,14 @@ import {
 import type { PluginConfig, ScratchProblemConfig, ScratchSubmitSource, ScratchSubmissionMeta } from './types';
 
 const SCRATCH_LANG = 'scratch3';
+const STATUS_WAITING = STATUS?.STATUS_WAITING ?? 0;
 const STATUS_IGNORED = STATUS?.STATUS_IGNORED ?? 30;
 const STATUS_SYSTEM_ERROR = STATUS?.STATUS_SYSTEM_ERROR ?? STATUS.STATUS_WRONG_ANSWER;
 const SCRATCH_ACTIONS_MARKER = '<!-- hydro-scratch-actions -->';
+
+function ensurePluginDomainEnabled(pluginConfig: PluginConfig, domainId: unknown) {
+  if (!pluginEnabledForDomain(pluginConfig, domainId)) throw new NotFoundError('Scratch plugin');
+}
 
 function parseBoolean(value: unknown, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -129,7 +135,7 @@ function autoJudgeRecordPatch(
 
   if (error) {
     return {
-      status: STATUS_IGNORED,
+      status: STATUS_WAITING,
       score: 0,
       judgeTexts: autoJudgeFailedText(error),
       testCases: [{
@@ -146,13 +152,13 @@ function autoJudgeRecordPatch(
   }
 
   return {
-    status: STATUS_IGNORED,
+    status: STATUS_WAITING,
     score: 0,
     judgeTexts: undefined,
     testCases: [{
       id: 0,
       subtaskId: 0,
-      status: STATUS_IGNORED,
+      status: STATUS_WAITING,
       score: 0,
       time: 0,
       memory: 0,
@@ -179,6 +185,7 @@ async function syncHydroScoreState(
       lang: SCRATCH_LANG,
     }),
   ].filter(Boolean));
+  if (patch.status === STATUS_WAITING) return;
   await HydroApi.judge.end(domainId, rid, {
     status: patch.status,
     score: patch.score,
@@ -424,7 +431,16 @@ function recordBelongsToProblem(rdoc: any, problemIds: any[]) {
 
 function isRecordScored(rdoc: any) {
   if (!rdoc) return false;
-  if (rdoc.status !== undefined && Number(rdoc.status) !== STATUS_IGNORED) return true;
+  const score = Number(rdoc.score);
+  if (Number.isFinite(score) && score > 0) return true;
+  const pendingStatuses = [
+    STATUS_WAITING,
+    STATUS_IGNORED,
+    STATUS?.STATUS_JUDGING,
+    STATUS?.STATUS_COMPILING,
+    STATUS?.STATUS_FETCHED,
+  ].filter((item) => item !== undefined).map(Number);
+  if (rdoc.status !== undefined && !pendingStatuses.includes(Number(rdoc.status))) return true;
   const texts = Array.isArray(rdoc.judgeTexts) ? rdoc.judgeTexts.join('\n') : String(rdoc.judgeTexts || '');
   return /Manual Scratch score|Scratch score/i.test(texts);
 }
@@ -433,6 +449,7 @@ function recordStatusLabel(status: unknown) {
   const value = Number(status);
   if (value === STATUS.STATUS_ACCEPTED) return 'Accepted';
   if (value === STATUS.STATUS_WRONG_ANSWER) return 'Wrong Answer';
+  if (value === STATUS_WAITING) return 'Waiting for manual score';
   if (value === STATUS_IGNORED) return 'Waiting for manual score';
   if (Number.isFinite(value)) return `Status ${value}`;
   return 'Unknown';
@@ -605,6 +622,11 @@ async function listScratchRecordsForProblem(
   return problemDocs.length ? problemDocs : scratchDocs;
 }
 
+async function listScratchRecordsForDomain(domainId: string) {
+  const docs = await HydroApi.record.listScratchCandidates(domainId, undefined, { sort: { _id: -1 }, limit: 2000 });
+  return docs.filter((rdoc: any) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc));
+}
+
 async function listScratchRecordsForContests(
   domainId: string,
   contestDocs: any[],
@@ -631,6 +653,31 @@ async function listScratchRecordsForContests(
   };
   const docs = await HydroApi.record.list(domainId, query, { sort: { _id: -1 }, limit: uid === undefined ? 2000 : 500 });
   return docs.filter((rdoc: any) => isScratchRecord(rdoc) && !!parseRecordProjectFile(rdoc));
+}
+
+async function buildFallbackSubmissionsForRecords(
+  domainId: string,
+  rdocs: any[],
+  pluginConfig: PluginConfig,
+) {
+  const problemIds = [...new Set((rdocs || [])
+    .map((rdoc) => Number(recordProblemId(rdoc)))
+    .filter((pid) => Number.isFinite(pid)))];
+  const pdict = await HydroApi.problem.getList(domainId, problemIds);
+  const configs = new Map<number, ScratchProblemConfig>();
+  await Promise.all(problemIds.map(async (problemId) => {
+    configs.set(problemId, await ScratchModel.getProblemConfig(domainId, problemId, pluginConfig));
+  }));
+  return (rdocs || [])
+    .map((rdoc) => {
+      const problemId = Number(recordProblemId(rdoc));
+      if (!Number.isFinite(problemId)) return null;
+      const pdoc = pdict?.[problemId] || pdict?.[String(problemId)] || { docId: problemId };
+      const config = configs.get(problemId);
+      if (!config) return null;
+      return buildSubmissionFromRecord(domainId, pdoc, rdoc, config);
+    })
+    .filter(Boolean) as ScratchSubmissionMeta[];
 }
 
 async function buildSubmissionRows(handler: Handler, domainId: string, docs: ScratchSubmissionMeta[], rdocs: any[]) {
@@ -683,6 +730,7 @@ async function buildSubmissionRows(handler: Handler, domainId: string, docs: Scr
       problemId,
       problemLabel: problemDisplayLabel(rowPdoc, problemId),
       problemUrl: handler.url('problem_detail', { pid: problemId }),
+      canScore: userCanManageProblem(handler.user, rowPdoc),
       submitMethod: item.source || 'editor',
       sourceType: originType,
       sourceLabel: originLabel,
@@ -700,11 +748,16 @@ async function buildSubmissionRows(handler: Handler, domainId: string, docs: Scr
   });
 }
 
-function filterSubmissionRows(rows: any[], originFilter: string, statusFilter: string) {
+function filterSubmissionRows(rows: any[], originFilter: string, statusFilter: string, problemFilter = '') {
+  const normalizedProblemFilter = normalizedQueryText(problemFilter).toLowerCase();
   return rows.filter((item) => {
     if (originFilter !== 'all' && item.sourceType !== originFilter) return false;
     if (statusFilter === 'waiting' && item.scored) return false;
     if (statusFilter === 'scored' && !item.scored) return false;
+    if (normalizedProblemFilter) {
+      const problemText = `${item.problemId || ''} ${item.problemLabel || ''}`.toLowerCase();
+      if (!problemText.includes(normalizedProblemFilter)) return false;
+    }
     return true;
   });
 }
@@ -820,6 +873,7 @@ abstract class ScratchProblemHandler extends Handler {
 
   @param('pid', Types.ProblemId)
   async prepare(domainId: string, pid: string | number) {
+    ensurePluginDomainEnabled(this.pluginConfig, domainId);
     this.routePid = pid;
     this.pdoc = await HydroApi.problem.get(domainId, pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${pid}`);
@@ -896,9 +950,15 @@ export class ScratchProblemConfigHandler extends ScratchProblemHandler {
   }
 }
 
-export class ScratchProblemCreateHandler extends Handler {
+abstract class ScratchDomainHandler extends Handler {
   pluginConfig!: PluginConfig;
 
+  async prepare({ domainId }: { domainId: string }) {
+    ensurePluginDomainEnabled(this.pluginConfig, domainId);
+  }
+}
+
+export class ScratchProblemCreateHandler extends ScratchDomainHandler {
   async get() {
     this.response.template = 'scratch_problem_create.html';
     this.response.body = {
@@ -936,9 +996,7 @@ export class ScratchProblemCreateHandler extends Handler {
   }
 }
 
-export class ScratchProblemImportHandler extends Handler {
-  pluginConfig!: PluginConfig;
-
+export class ScratchProblemImportHandler extends ScratchDomainHandler {
   async get() {
     this.response.template = 'scratch_problem_import.html';
     this.response.body = {
@@ -1313,9 +1371,11 @@ abstract class ScratchSubmissionHandler extends Handler {
 
   @param('rid', Types.ObjectId)
   async prepare(domainId: string, rid: any) {
+    ensurePluginDomainEnabled(this.pluginConfig, domainId);
     this.rdoc = await HydroApi.record.get(domainId, rid) || await HydroApi.record.get(rid);
     if (!this.rdoc) throw new NotFoundError(`Record ${rid}`);
     const effectiveDomainId = this.rdoc.domainId || domainId;
+    ensurePluginDomainEnabled(this.pluginConfig, effectiveDomainId);
     this.pdoc = await HydroApi.problem.get(effectiveDomainId, this.rdoc.pid);
     if (!this.pdoc) throw new NotFoundError(`Problem ${this.rdoc.pid}`);
     const submission = await ScratchModel.getSubmission(effectiveDomainId, rid);
@@ -1417,6 +1477,7 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
   async get() {
     this.ensureCanScoreSubmission();
     const projectUrl = appendQuery(this.url('scratch_submission_project', { rid: this.rdoc._id }), { raw: 1 });
+    const returnUrl = safeLocalUrl(getQueryValue(this, 'returnUrl'));
     this.response.template = 'scratch_score.html';
     this.response.body = {
       pdoc: this.pdoc,
@@ -1429,12 +1490,14 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       downloadUrl: this.url('scratch_submission_project', { rid: this.rdoc._id }),
       submissionsUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
       recordUrl: this.url('record_detail', { rid: this.rdoc._id }),
+      returnUrl,
     };
   }
 
   @post('score', Types.Float)
   @post('comment', Types.String, true)
-  async post(domainId: string, score: number, comment = '') {
+  @post('returnUrl', Types.String, true)
+  async post(domainId: string, score: number, comment = '', returnUrl = '') {
     this.ensureCanScoreSubmission();
     const effectiveDomainId = this.pdoc.domainId || this.rdoc.domainId || domainId;
     const maxScore = this.submission.maxScore || 100;
@@ -1491,15 +1554,17 @@ export class ScratchSubmissionScoreHandler extends ScratchSubmissionHandler {
       manualPatch,
       this.user._id,
     );
+    const defaultRedirectUrl = this.url('scratch_problem_submissions', { pid: this.pdoc.docId });
+    const redirectUrl = safeLocalUrl(returnUrl) || defaultRedirectUrl;
     this.response.body = {
       rid: this.rdoc._id,
       score,
       maxScore,
       status,
-      redirectUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
+      redirectUrl,
     };
     if (!this.request.json) this.response.redirect = appendQuery(
-      this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
+      redirectUrl,
       { scored: String(this.rdoc._id) },
     );
   }
@@ -1551,19 +1616,95 @@ export class ScratchProblemSubmissionsHandler extends ScratchProblemHandler {
       canScore: canManage,
       originFilter,
       statusFilter,
+      problemFilter: '',
       contestFilter: contestQuery,
       contestMatches: contestDocs.map((tdoc: any) => ({ id: contestDocId(tdoc), title: tdoc.title, rule: tdoc.rule })),
       scoredRid: getQueryValue(this, 'scored') || '',
+      isGlobalQueue: false,
+      pendingCount: rows.filter((item) => !item.scored).length,
       editorUrl: this.url('scratch_editor', { pid: this.pdoc.docId }),
       problemUrl: this.url('problem_detail', { pid: this.pdoc.docId }),
       recordListUrl: appendQuery(this.url('record_main'), { pid: String(this.routePid || this.pdoc.docId) }),
       editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
       configUrl: this.url('scratch_problem_config', { pid: this.pdoc.docId }),
+      reviewQueueUrl: this.url('scratch_review_queue'),
+      resetUrl: this.url('scratch_problem_submissions', { pid: this.pdoc.docId }),
     };
   }
 }
 
-export class ScratchProblemGuideHandler extends Handler {
+export class ScratchReviewQueueHandler extends ScratchDomainHandler {
+  async get() {
+    const domainId = String(this.args.domainId || 'system');
+    const contestQuery = normalizedQueryText(getQueryValue(this, 'contest'));
+    const problemQuery = normalizedQueryText(getQueryValue(this, 'problem'));
+    const contestDocs = contestQuery ? await HydroApi.contest.searchByTitle(domainId, contestQuery, { limit: 20 }) : [];
+    const contestMode = !!contestQuery;
+    const metaDocs = contestMode
+      ? []
+      : await ScratchModel.getDomainSubmissions(domainId).limit(2000).toArray();
+    const rdocs = contestMode
+      ? await listScratchRecordsForContests(domainId, contestDocs, undefined)
+      : await listScratchRecordsForDomain(domainId);
+    const fallbackDocs = await buildFallbackSubmissionsForRecords(domainId, rdocs, this.pluginConfig);
+    const docs = mergeSubmissionRecords(metaDocs, fallbackDocs);
+    const originFilter = submissionFilterValue(getQueryValue(this, 'origin'), ['all', 'normal', 'contest', 'homework'], 'all');
+    const statusFilter = submissionFilterValue(getQueryValue(this, 'status'), ['all', 'waiting', 'scored'], 'waiting');
+    const rows = await buildSubmissionRows(this, domainId, docs, rdocs);
+    const reviewableRows = rows.filter((item) => item.canScore);
+    const canReviewProblems = this.user?.hasPerm?.(PERM.PERM_EDIT_PROBLEM)
+      || this.user?.hasPerm?.(PERM.PERM_EDIT_PROBLEM_SELF);
+    if (!canReviewProblems && !reviewableRows.length) throw new ForbiddenError();
+    const filteredRows = filterSubmissionRows(reviewableRows, originFilter, statusFilter, problemQuery);
+    const resetUrl = this.url('scratch_review_queue');
+    const returnUrl = appendQuery(resetUrl, {
+      problem: problemQuery,
+      contest: contestQuery,
+      origin: originFilter,
+      status: statusFilter,
+    });
+    for (const row of filteredRows) {
+      row.scoreUrl = appendQuery(row.scoreUrl, { returnUrl });
+    }
+    if (this.request.json) {
+      this.response.body = {
+        submissions: filteredRows,
+        totalSubmissions: reviewableRows.length,
+        pendingCount: reviewableRows.filter((item) => !item.scored).length,
+        filters: {
+          problem: problemQuery,
+          contest: contestQuery,
+          origin: originFilter,
+          status: statusFilter,
+        },
+      };
+      return;
+    }
+    this.response.template = 'scratch_submissions.html';
+    this.response.body = {
+      pdoc: null,
+      submissions: filteredRows,
+      totalSubmissions: reviewableRows.length,
+      pendingCount: reviewableRows.filter((item) => !item.scored).length,
+      canManage: true,
+      canReadAll: true,
+      canScore: true,
+      originFilter,
+      statusFilter,
+      problemFilter: problemQuery,
+      contestFilter: contestQuery,
+      contestMatches: contestDocs.map((tdoc: any) => ({ id: contestDocId(tdoc), title: tdoc.title, rule: tdoc.rule })),
+      scoredRid: getQueryValue(this, 'scored') || '',
+      isGlobalQueue: true,
+      problemListUrl: this.url('problem_main'),
+      recordListUrl: appendQuery(this.url('record_main'), { status: STATUS_WAITING }),
+      reviewQueueUrl: resetUrl,
+      resetUrl,
+    };
+  }
+}
+
+export class ScratchProblemGuideHandler extends ScratchDomainHandler {
   async get() {
     const guidePath = join(__dirname, '..', 'docs', 'teacher-judge-config-guide.md');
     this.response.body = await readFile(guidePath);
@@ -1580,11 +1721,12 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
   ctx.Route('scratch_problem_import', '/scratch/problem/import', bindConfig(ScratchProblemImportHandler), PERM.PERM_CREATE_PROBLEM);
   ctx.Route('scratch_problem_edit', '/scratch/problem/:pid/edit', bindConfig(ScratchProblemEditHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_config', '/scratch/problem/:pid/config', bindConfig(ScratchProblemConfigHandler), PERM.PERM_VIEW_PROBLEM);
-  ctx.Route('scratch_problem_guide', '/scratch/problem/guide', ScratchProblemGuideHandler, PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_problem_guide', '/scratch/problem/guide', bindConfig(ScratchProblemGuideHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_export', '/scratch/problem/:pid/export', bindConfig(ScratchProblemExportHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_template', '/scratch/problem/:pid/template', bindConfig(ScratchProblemTemplateHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_statement', '/scratch/problem/:pid/statement', bindConfig(ScratchProblemStatementHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_problem_submissions', '/scratch/problem/:pid/submissions', bindConfig(ScratchProblemSubmissionsHandler), PERM.PERM_VIEW_PROBLEM);
+  ctx.Route('scratch_review_queue', '/scratch/review', bindConfig(ScratchReviewQueueHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_editor', '/scratch/problem/:pid/editor', bindConfig(ScratchEditorHandler), PERM.PERM_VIEW_PROBLEM);
   ctx.Route('scratch_save_draft', '/scratch/problem/:pid/draft', bindConfig(ScratchDraftSaveHandler), PERM.PERM_SUBMIT_PROBLEM);
   ctx.Route('scratch_load_draft', '/scratch/problem/:pid/draft', bindConfig(ScratchDraftLoadHandler), PERM.PERM_VIEW_PROBLEM);
@@ -1613,6 +1755,7 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
     if (handler.request.json) return;
     if (getQueryValue(handler, 'scratchActions') === '0') return;
     if (!pdoc?.docId) return undefined;
+    if (!pluginEnabledForDomain(pluginConfig, pdoc.domainId || handler.args?.domainId)) return;
     const config = await ScratchModel.getProblemConfig(pdoc.domainId, pdoc.docId, pluginConfig);
     if (!['editor', 'both'].includes(config.submitMode)) return;
     appendScratchProblemActionsSafe(pdoc, handler, config);
