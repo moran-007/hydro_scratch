@@ -69,6 +69,8 @@ function algorithmProjectJson() {
 async function installAlgorithmVmMock() {
   const modulePath = join(await tempDir(), 'scratch-vm-mock.cjs');
   await writeFile(modulePath, `
+const { EventEmitter } = require('events');
+
 class FakeVariable {
   constructor(name, type, value) {
     this.name = name;
@@ -81,8 +83,10 @@ function makeStage() {
   const variables = {
     inputVar: new FakeVariable('input', '', ''),
     outputVar: new FakeVariable('output', '', ''),
+    resultVar: new FakeVariable('result', '', ''),
     inputList: new FakeVariable('input', 'list', []),
     outputList: new FakeVariable('output', 'list', []),
+    algorithmList: new FakeVariable('list', 'list', []),
   };
   return {
     isStage: true,
@@ -92,6 +96,17 @@ function makeStage() {
       return Object.values(this.variables).find((variable) => variable.name === name && (variable.type || '') === type);
     },
   };
+}
+
+class FakeRuntime extends EventEmitter {
+  constructor(stage, vm) {
+    super();
+    this.stage = stage;
+    this.targets = [stage];
+    this.getTargetForStage = () => stage;
+    this.getSpriteTargetByName = () => undefined;
+    this.on('ANSWER', (answer) => vm.handleAnswer(answer));
+  }
 }
 
 function numericSum(values) {
@@ -113,19 +128,30 @@ module.exports = class FakeVirtualMachine {
   setTurboMode() {}
   async loadProject() {
     this.stage = makeStage();
-    this.runtime = {
-      targets: [this.stage],
-      getTargetForStage: () => this.stage,
-      getSpriteTargetByName: () => undefined,
-    };
+    this.runtime = new FakeRuntime(this.stage, this);
   }
   greenFlag() {
     const inputVar = this.stage.lookupVariableByNameAndType('input', '');
     const inputList = this.stage.lookupVariableByNameAndType('input', 'list');
     const outputVar = this.stage.lookupVariableByNameAndType('output', '');
     const outputList = this.stage.lookupVariableByNameAndType('output', 'list');
+    const algorithmList = this.stage.lookupVariableByNameAndType('list', 'list');
+    const resultVar = this.stage.lookupVariableByNameAndType('result', '');
+    if (Array.isArray(algorithmList.value) && algorithmList.value.length) {
+      const key = algorithmList.value.map(String).join(',');
+      const samples = {
+        '13,15,7,12,9,17,21,5,4,19': '9#12#21#19#4#5#17#7#15#13',
+        '5,10,48,81,50,20,85,90,60,30': '48#81#30#60#90#85#20#50#10#5',
+      };
+      resultVar.value = samples[key] || algorithmList.value.join('#');
+      return;
+    }
     const listValues = Array.isArray(inputList.value) ? inputList.value : [];
     const text = listValues.length ? listValues.join(' ') : String(inputVar.value || '');
+    if (!text.trim()) {
+      this.runtime.emit('QUESTION', 'input');
+      return;
+    }
     let result;
     if (/fail/.test(text)) result = '999';
     else if (/pi/.test(text)) result = '3.14159';
@@ -133,6 +159,21 @@ module.exports = class FakeVirtualMachine {
     if (/hello/.test(text)) outputVar.value = '  ' + result.replace(/\\s+/g, '    ') + '  ';
     else outputVar.value = result;
     outputList.value = String(result).trim() ? String(result).trim().split(/\\s+/) : [];
+  }
+  handleAnswer(answer) {
+    const text = String(answer || '').trim();
+    if (/^\\d{8}$/.test(text)) {
+      const value = '转换完成！考试日期是：' + text.slice(0, 4) + '年' + text.slice(4, 6) + '月' + text.slice(6, 8) + '日';
+      this.runtime.emit('SAY', this.stage, 'say', value);
+      return;
+    }
+    const number = Number(text);
+    if (!Number.isInteger(number) || number < 10 || number > 99) {
+      this.runtime.emit('QUESTION', '请输入10-99之间的数字');
+      return;
+    }
+    const digitSum = Number(text[0]) + Number(text[1]);
+    this.runtime.emit('SAY', this.stage, 'say', digitSum % 3 === 0 ? '是3的倍数' : '不是3的倍数');
   }
   stopAll() {}
   quit() {}
@@ -198,6 +239,114 @@ describe('Scratch algorithm judge', () => {
       message: 'Algorithm case failed.',
     });
     expect(result.details[8].evidence).toBeUndefined();
+  });
+
+  it('answers Scratch ask-and-wait prompts and reads say output', async () => {
+    await installAlgorithmVmMock();
+    const { judgeScratchAlgorithmFile } = await import('../src/static-judge');
+    const filePath = await tempFile('algorithm-ask.sb3');
+    await writeZip(filePath, {
+      'project.json': algorithmProjectJson(),
+    });
+
+    const result = await judgeScratchAlgorithmFile(filePath, {
+      totalScore: 100,
+      algorithm: {
+        inputMode: 'ask',
+        outputMode: 'say',
+        compareMode: 'exact',
+        waitMs: 30,
+        timeoutMs: 1000,
+        cases: [
+          {
+            name: 'date conversion',
+            input: '20260615',
+            expectedOutput: '转换完成！考试日期是：2026年06月15日',
+            score: 25,
+          },
+          {
+            name: 'multiple of three yes',
+            input: '45',
+            expectedOutput: '是3的倍数',
+            score: 25,
+          },
+          {
+            name: 'multiple of three no',
+            input: '47',
+            expectedOutput: '不是3的倍数',
+            score: 25,
+          },
+          {
+            name: 'repeat until valid input',
+            input: ['5', '45'],
+            expectedOutput: '是3的倍数',
+            score: 25,
+          },
+        ],
+      },
+    });
+
+    expect(result).toMatchObject({
+      mode: 'algorithm',
+      maxScore: 100,
+      totalScore: 100,
+      passed: true,
+      summary: {
+        passedChecks: 4,
+        totalChecks: 4,
+        rawScore: 100,
+        rawMaxScore: 100,
+      },
+    });
+  });
+
+  it('writes test data to a Scratch list and reads the result variable', async () => {
+    await installAlgorithmVmMock();
+    const { judgeScratchAlgorithmFile } = await import('../src/static-judge');
+    const filePath = await tempFile('algorithm-list-result.sb3');
+    await writeZip(filePath, {
+      'project.json': algorithmProjectJson(),
+    });
+
+    const result = await judgeScratchAlgorithmFile(filePath, {
+      totalScore: 100,
+      algorithm: {
+        inputMode: 'list',
+        inputList: 'list',
+        outputMode: 'variable',
+        outputVariable: 'result',
+        compareMode: 'exact',
+        waitMs: 0,
+        timeoutMs: 1000,
+        cases: [
+          {
+            name: 'sort sample 1',
+            input: [13, 15, 7, 12, 9, 17, 21, 5, 4, 19],
+            expectedOutput: '9#12#21#19#4#5#17#7#15#13',
+            score: 50,
+          },
+          {
+            name: 'sort sample 2',
+            input: [5, 10, 48, 81, 50, 20, 85, 90, 60, 30],
+            expectedOutput: '48#81#30#60#90#85#20#50#10#5',
+            score: 50,
+          },
+        ],
+      },
+    });
+
+    expect(result).toMatchObject({
+      mode: 'algorithm',
+      maxScore: 100,
+      totalScore: 100,
+      passed: true,
+      summary: {
+        passedChecks: 2,
+        totalChecks: 2,
+        rawScore: 100,
+        rawMaxScore: 100,
+      },
+    });
   });
 
   it('reads output from Scratch lists and applies score scaling', async () => {

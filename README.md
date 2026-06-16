@@ -1,6 +1,6 @@
 # Hydro Scratch 自动测评插件
 
-当前版本：`0.6.13`
+当前版本：`0.6.14`
 
 这是一个面向 HydroOJ 的 Scratch 出题、答题、暂存、提交、批改和自动测评插件。插件会创建 Hydro 原生题目，同时为题目增加 Scratch 在线编辑器、`.sb3` 上传、草稿恢复、手动评分、静态/动态/混合自动测评、算法题输入输出测试和题目包导入导出能力。
 
@@ -13,8 +13,8 @@
 - 支持域级待批改队列 `/scratch/review`，老师不需要先进入具体题目即可查看待处理提交。
 - 支持任务题和算法题两类题目。
 - 任务题支持静态检查、积木结构顺序检查、动态运行检查和混合测评。
-- 算法题支持批量输入输出测试，默认向 Scratch 变量 `input` 写入输入，运行绿旗后读取 `output` 判分。
-- 算法题支持 `exact`、`trim`、`tokens`、`number` 四种输出比较方式，支持隐藏测试点、列表输入和列表输出。
+- 算法题支持批量输入输出测试，可选择“询问回答输入、变量输入、列表输入”和“角色说出结果、变量输出、列表输出”。
+- 算法题支持 `exact`、`trim`、`tokens`、`number` 四种输出比较方式，支持隐藏测试点、问答式输入、列表输入和列表输出。
 - 创建页、编辑页和配置页均可直接调整手动评分、自动评分、混合评分、算法测试点和作品限制，减少反复跳转。
 - 自动测评结果会写回 Hydro 记录，并同步普通练习、比赛、作业等上下文成绩。
 - 支持 Hydro 原生风格题目包导入导出，包含题面、Scratch 配置、测评配置和可选模板 `.sb3`。
@@ -35,20 +35,20 @@ hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 完整安装包：
 
 ```text
-release/hydro-plugin-scratch-0.6.13.tgz
+release/hydro-plugin-scratch-0.6.14.tgz
 ```
 
 已有插件时优先使用轻量覆盖更新包：
 
 ```text
-release/hydro-plugin-scratch-update-0.6.13.tgz
-release/hydro-plugin-scratch-update-0.6.13.zip
+release/hydro-plugin-scratch-update-0.6.14.tgz
+release/hydro-plugin-scratch-update-0.6.14.zip
 ```
 
 Linux 覆盖更新示例：
 
 ```bash
-tar -xzf /tmp/hydro-plugin-scratch-update-0.6.13.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.14.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
 cd ~/.hydro/addons/hydro-plugin-scratch
 yarn --production
 pm2 restart hydro
@@ -111,13 +111,14 @@ enabledDomains:
 
 ## 算法题测评
 
-算法题适合“输入一组数据，输出答案”的 Scratch 题目。默认规则：
+算法题适合“输入一组数据，输出答案”的 Scratch 题目。0.6.14 起支持三类输入和三类输出：
 
-- 判题器向变量 `input` 写入当前测试点输入。
-- 运行绿旗。
-- 等待指定毫秒数。
-- 读取变量 `output`。
-- 按配置的比较方式判定是否通过并累计分数。
+- `inputMode: "ask"`：自动回答 Scratch 的“询问并等待”，适合日期转换、判断倍数、藏头诗等问答式题目。
+- `inputMode: "variable"`：把测试点输入写入指定 Scratch 变量。
+- `inputMode: "list"`：把测试点输入写入指定 Scratch 列表，适合排序、筛选、统计等批量数据题。
+- `outputMode: "say"`：读取角色最后一次非空“说”内容。
+- `outputMode: "variable"`：读取指定输出变量，例如 `result`。
+- `outputMode: "list"`：读取指定输出列表并按 `outputJoin` 拼接。
 
 快捷录入格式：
 
@@ -128,25 +129,23 @@ enabledDomains:
 示例：
 
 ```text
-1 => 1 => 5 => 单值输入
-1 2 => 3 => 5 => 单行多个输入
-2\n3 => 5 => 10 => 多次输入
-[1,2,3] => 6 => 10 => 列表数字输入
-["a","b"] => a b => 10 => 列表字符串输入
-* 100 200 => 300 => 20 => 隐藏大数据
+20260615 => 转换完成！考试日期是：2026年06月15日 => 20 => 日期转换
+45 => 是3的倍数 => 20 => 判断倍数
+[13,15,7,12,9,17,21,5,4,19] => 9#12#21#19#4#5#17#7#15#13 => 30 => 列表排序样例
+* [5,10,48,81,50,20,85,90,60,30] => 48#81#30#60#90#85#20#50#10#5 => 30 => 隐藏排序测试
 ```
 
 说明：
 
 - 多行输入写成 `\n`。
-- JSON 数组会作为列表值解析，例如 `[1,2,3]`。
+- JSON 数组会作为列表值解析，例如 `[1,2,3]`；在 `inputMode: "ask"` 下，数组表示多次回答。
 - 行首加 `*` 表示隐藏测试点，失败时不向学生暴露实际输入输出。
 - `exact` 要求完全一致。
 - `trim` 忽略首尾空白。
 - `tokens` 按空白分词比较。
 - `number` 按数字比较，可配置误差。
 
-算法题模板见 [docs/templates/judge-config-algorithm-io.json](docs/templates/judge-config-algorithm-io.json)。
+算法题模板见 [docs/templates/judge-config-algorithm-io.json](docs/templates/judge-config-algorithm-io.json) 和 [docs/templates/judge-config-algorithm-list-result.json](docs/templates/judge-config-algorithm-list-result.json)。
 
 ## 题目包导入导出
 
@@ -208,8 +207,8 @@ npm run pack:plugin
 当前版本本地验证：
 
 - TypeScript 编译通过。
-- Vitest 全量通过：5 个测试文件，34 个测试。
-- 算法题新增覆盖：10 个测试点、多行输入、列表输入、列表输出、输出比较、隐藏失败点、得分累加和总分缩放。
+- Vitest 全量通过：5 个测试文件，36 个测试。
+- 算法题新增覆盖：10 个旧式输入输出测试点、问答式 `ask/answer/say`、列表输入、`result` 变量输出、列表输出、输出比较、隐藏失败点、得分累加和总分缩放。
 
 ## 升级注意事项
 
@@ -222,5 +221,4 @@ npm run pack:plugin
 
 如果后续切换 Codex 账号或新线程继续开发，请先阅读：
 
-- [docs/codex-handoff-0.6.13.md](docs/codex-handoff-0.6.13.md)
-
+- [docs/codex-handoff-0.6.14.md](docs/codex-handoff-0.6.14.md)

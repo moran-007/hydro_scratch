@@ -44,6 +44,8 @@ import type {
   ScratchAlgorithmCase,
   ScratchAlgorithmCompareMode,
   ScratchAlgorithmConfig,
+  ScratchAlgorithmInputMode,
+  ScratchAlgorithmOutputMode,
   ScratchAlgorithmValue,
   ScratchProblemConfig,
   ScratchProblemKind,
@@ -896,7 +898,9 @@ function downloadFilename(value: string) {
 
 interface AlgorithmQuickForm {
   target: string;
+  inputMode: ScratchAlgorithmInputMode;
   inputName: string;
+  outputMode: ScratchAlgorithmOutputMode;
   outputName: string;
   compareMode: ScratchAlgorithmCompareMode;
   waitMs: number;
@@ -952,15 +956,55 @@ function algorithmCasesToQuickText(cases: ScratchAlgorithmCase[] | undefined) {
 
 function algorithmQuickForm(config: ScratchProblemConfig): AlgorithmQuickForm {
   const algorithm = config.judgeConfig.algorithm || {};
+  const inputMode = inferAlgorithmInputMode(algorithm, 'ask');
+  const outputMode = inferAlgorithmOutputMode(algorithm, 'say');
   return {
     target: algorithm.target || 'Stage',
-    inputName: algorithm.inputVariable || algorithm.inputList || 'input',
-    outputName: algorithm.outputVariable || algorithm.outputList || 'output',
+    inputMode,
+    inputName: inputMode === 'list'
+      ? algorithm.inputList || algorithm.inputVariable || 'list'
+      : algorithm.inputVariable || algorithm.inputList || 'input',
+    outputMode,
+    outputName: outputMode === 'list'
+      ? algorithm.outputList || algorithm.outputVariable || 'output'
+      : algorithm.outputVariable || algorithm.outputList || 'result',
     compareMode: algorithm.compareMode || 'trim',
     waitMs: Number(algorithm.waitMs ?? 1000),
     timeoutMs: Number(algorithm.timeoutMs ?? 6000),
     casesText: algorithmCasesToQuickText(algorithm.cases),
   };
+}
+
+function inferAlgorithmInputMode(
+  algorithm: ScratchAlgorithmConfig,
+  fallback: ScratchAlgorithmInputMode,
+): ScratchAlgorithmInputMode {
+  if (algorithm.inputMode) return algorithm.inputMode;
+  if (algorithm.inputList && !algorithm.inputVariable) return 'list';
+  if (algorithm.inputVariable) return 'variable';
+  return fallback;
+}
+
+function inferAlgorithmOutputMode(
+  algorithm: ScratchAlgorithmConfig,
+  fallback: ScratchAlgorithmOutputMode,
+): ScratchAlgorithmOutputMode {
+  if (algorithm.outputMode) return algorithm.outputMode;
+  if (algorithm.outputList && !algorithm.outputVariable) return 'list';
+  if (algorithm.outputVariable) return 'variable';
+  return fallback;
+}
+
+function parseQuickInputMode(input: unknown): ScratchAlgorithmInputMode {
+  const value = String(input || '').trim();
+  if (value === 'ask' || value === 'variable' || value === 'list') return value;
+  throw new ValidationError('Invalid algorithm input mode.');
+}
+
+function parseQuickOutputMode(input: unknown): ScratchAlgorithmOutputMode {
+  const value = String(input || '').trim();
+  if (value === 'say' || value === 'variable' || value === 'list') return value;
+  throw new ValidationError('Invalid algorithm output mode.');
 }
 
 function parseAlgorithmQuickCases(text: string) {
@@ -1002,6 +1046,18 @@ function buildAlgorithmQuickConfig(
   const casesText = body.algorithmCases ?? body.algorithm_cases;
   if (casesText === undefined) return undefined;
   const currentAlgorithm = current.judgeConfig.algorithm || {};
+  const inputMode = parseQuickInputMode(
+    body.algorithmInputMode
+      || body.algorithm_input_mode
+      || currentAlgorithm.inputMode
+      || inferAlgorithmInputMode(currentAlgorithm, 'variable'),
+  );
+  const outputMode = parseQuickOutputMode(
+    body.algorithmOutputMode
+      || body.algorithm_output_mode
+      || currentAlgorithm.outputMode
+      || inferAlgorithmOutputMode(currentAlgorithm, 'variable'),
+  );
   const compareMode = String(body.algorithmCompareMode || body.algorithm_compare_mode || currentAlgorithm.compareMode || 'trim');
   if (!['exact', 'trim', 'tokens', 'number'].includes(compareMode)) {
     throw new ValidationError('算法输出比较方式无效');
@@ -1010,13 +1066,29 @@ function buildAlgorithmQuickConfig(
   const timeoutMs = Number(body.algorithmTimeoutMs || body.algorithm_timeout_ms || currentAlgorithm.timeoutMs || 6000);
   if (!Number.isFinite(waitMs) || waitMs < 0) throw new ValidationError('算法等待时间必须是非负数字');
   if (!Number.isFinite(timeoutMs) || timeoutMs < 1) throw new ValidationError('算法超时时间必须大于 0');
+  const inputName = String(
+    body.algorithmInputName
+      || body.algorithm_input_name
+      || currentAlgorithm.inputVariable
+      || currentAlgorithm.inputList
+      || 'input',
+  ).trim() || 'input';
+  const outputName = String(
+    body.algorithmOutputName
+      || body.algorithm_output_name
+      || currentAlgorithm.outputVariable
+      || currentAlgorithm.outputList
+      || (outputMode === 'variable' ? 'result' : 'output'),
+  ).trim() || (outputMode === 'variable' ? 'result' : 'output');
   return {
     ...currentAlgorithm,
     target: String(body.algorithmTarget || body.algorithm_target || currentAlgorithm.target || 'Stage').trim() || undefined,
-    inputVariable: String(body.algorithmInputName || body.algorithm_input_name || currentAlgorithm.inputVariable || currentAlgorithm.inputList || 'input').trim() || 'input',
-    inputList: undefined,
-    outputVariable: String(body.algorithmOutputName || body.algorithm_output_name || currentAlgorithm.outputVariable || currentAlgorithm.outputList || 'output').trim() || 'output',
-    outputList: undefined,
+    inputMode,
+    inputVariable: inputMode === 'variable' ? inputName : undefined,
+    inputList: inputMode === 'list' ? inputName : undefined,
+    outputMode,
+    outputVariable: outputMode === 'variable' ? outputName : undefined,
+    outputList: outputMode === 'list' ? outputName : undefined,
     compareMode: compareMode as ScratchAlgorithmCompareMode,
     waitMs,
     timeoutMs,

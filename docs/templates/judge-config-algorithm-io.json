@@ -3,36 +3,36 @@
   "totalScore": 100,
   "algorithm": {
     "target": "Stage",
-    "inputVariable": "input",
-    "outputVariable": "output",
-    "compareMode": "trim",
+    "inputMode": "ask",
+    "outputMode": "say",
+    "compareMode": "exact",
     "waitMs": 1000,
     "timeoutMs": 6000,
     "cases": [
       {
-        "name": "样例 1：单个数字",
-        "input": "21",
-        "expectedOutput": "42",
+        "name": "日期转换样例",
+        "input": "20260615",
+        "expectedOutput": "转换完成！考试日期是：2026年06月15日",
         "score": 25,
-        "hint": "请从 input 变量读取输入，并把答案写入 output 变量。"
+        "hint": "适合使用“询问并等待”，从“回答”积木取值，最后用“说”输出完整结果。"
       },
       {
-        "name": "样例 2：多行输入",
-        "input": "3\n1 2 3",
-        "expectedOutput": "6",
+        "name": "判断 3 的倍数",
+        "input": "45",
+        "expectedOutput": "是3的倍数",
         "score": 25
       },
       {
-        "name": "隐藏测试 1",
-        "input": "5\n10 20 30 40 50",
-        "expectedOutput": "150",
+        "name": "列表排序样例 1",
+        "input": [13, 15, 7, 12, 9, 17, 21, 5, 4, 19],
+        "expectedOutput": "9#12#21#19#4#5#17#7#15#13",
         "score": 25,
-        "hidden": true
+        "hint": "若使用本样例，请把 inputMode 改为 list，inputList 改为 list，把 outputMode 改为 variable，outputVariable 改为 result。"
       },
       {
-        "name": "隐藏测试 2",
-        "input": "0",
-        "expectedOutput": "0",
+        "name": "隐藏排序样例",
+        "input": [5, 10, 48, 81, 50, 20, 85, 90, 60, 30],
+        "expectedOutput": "48#81#30#60#90#85#20#50#10#5",
         "score": 25,
         "hidden": true
       }

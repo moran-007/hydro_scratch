@@ -5,6 +5,8 @@ export type ScratchProblemKind = 'task' | 'algorithm';
 export type ScratchJudgeCategory = 'static' | 'structure' | 'dynamic' | 'algorithm';
 export type ScratchAlgorithmCompareMode = 'exact' | 'trim' | 'tokens' | 'number';
 export type ScratchAlgorithmInputSplit = 'none' | 'lines' | 'tokens';
+export type ScratchAlgorithmInputMode = 'variable' | 'list' | 'ask';
+export type ScratchAlgorithmOutputMode = 'variable' | 'list' | 'say';
 export type ScratchAlgorithmValue = string | number | boolean | Array<string | number | boolean>;
 
 export interface ScratchCheckBase {
@@ -165,8 +167,10 @@ export interface ScratchAlgorithmCase {
 
 export interface ScratchAlgorithmConfig {
   target?: string;
+  inputMode?: ScratchAlgorithmInputMode;
   inputVariable?: string;
   inputList?: string;
+  outputMode?: ScratchAlgorithmOutputMode;
   outputVariable?: string;
   outputList?: string;
   inputSplit?: ScratchAlgorithmInputSplit;

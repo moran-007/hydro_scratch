@@ -1,0 +1,484 @@
+{
+  "generatedAt": "2026-06-16",
+  "site": "https://moran007.top/d/scratch/",
+  "note": "Passwords are intentionally not stored in this repository document.",
+  "problems": [
+    {
+      "pid": "SA01",
+      "title": "两数求和",
+      "level": "入门",
+      "goal": "输入两个整数，输出它们的和。",
+      "askFlow": [
+        "询问第一个整数 a",
+        "询问第二个整数 b"
+      ],
+      "outputRule": "输出 a + b 的结果。",
+      "compareMode": "number",
+      "quickEntry": "1\\n2 => 3 => 20 => 公开 1：普通正数\n0\\n0 => 0 => 20 => 公开 2：零值\n-5\\n8 => 3 => 20 => 公开 3：一正一负\n* 999\\n1 => 1000 => 20 => 隐藏 1：进位\n* -100\\n-250 => -350 => 20 => 隐藏 2：两个负数",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "number",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：普通正数",
+              "input": "1\n2",
+              "expectedOutput": "3",
+              "score": 20
+            },
+            {
+              "name": "公开 2：零值",
+              "input": "0\n0",
+              "expectedOutput": "0",
+              "score": 20
+            },
+            {
+              "name": "公开 3：一正一负",
+              "input": "-5\n8",
+              "expectedOutput": "3",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：进位",
+              "input": "999\n1",
+              "expectedOutput": "1000",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：两个负数",
+              "input": "-100\n-250",
+              "expectedOutput": "-350",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA02",
+      "title": "三个数最大值",
+      "level": "入门",
+      "goal": "输入三个整数，输出其中最大的一个。",
+      "askFlow": [
+        "询问第一个整数 a",
+        "询问第二个整数 b",
+        "询问第三个整数 c"
+      ],
+      "outputRule": "输出 max(a, b, c)。",
+      "compareMode": "number",
+      "quickEntry": "3\\n9\\n5 => 9 => 20 => 公开 1：中间最大\n-1\\n-5\\n-3 => -1 => 20 => 公开 2：全为负数\n8\\n8\\n7 => 8 => 20 => 公开 3：存在相等\n* 0\\n100\\n100 => 100 => 20 => 隐藏 1：后两项相等最大\n* -10\\n20\\n15 => 20 => 20 => 隐藏 2：第二项最大",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "number",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：中间最大",
+              "input": "3\n9\n5",
+              "expectedOutput": "9",
+              "score": 20
+            },
+            {
+              "name": "公开 2：全为负数",
+              "input": "-1\n-5\n-3",
+              "expectedOutput": "-1",
+              "score": 20
+            },
+            {
+              "name": "公开 3：存在相等",
+              "input": "8\n8\n7",
+              "expectedOutput": "8",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：后两项相等最大",
+              "input": "0\n100\n100",
+              "expectedOutput": "100",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：第二项最大",
+              "input": "-10\n20\n15",
+              "expectedOutput": "20",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA03",
+      "title": "奇偶判断",
+      "level": "入门",
+      "goal": "输入一个整数，判断它是偶数还是奇数。",
+      "askFlow": [
+        "询问一个整数 n"
+      ],
+      "outputRule": "如果 n 是偶数，输出 even；否则输出 odd。",
+      "compareMode": "trim",
+      "quickEntry": "0 => even => 20 => 公开 1：零\n7 => odd => 20 => 公开 2：正奇数\n-4 => even => 20 => 公开 3：负偶数\n* 101 => odd => 20 => 隐藏 1：较大奇数\n* 1000 => even => 20 => 隐藏 2：较大偶数",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "trim",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：零",
+              "input": "0",
+              "expectedOutput": "even",
+              "score": 20
+            },
+            {
+              "name": "公开 2：正奇数",
+              "input": "7",
+              "expectedOutput": "odd",
+              "score": 20
+            },
+            {
+              "name": "公开 3：负偶数",
+              "input": "-4",
+              "expectedOutput": "even",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：较大奇数",
+              "input": "101",
+              "expectedOutput": "odd",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：较大偶数",
+              "input": "1000",
+              "expectedOutput": "even",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA04",
+      "title": "从 1 加到 n",
+      "level": "循环",
+      "goal": "输入整数 n，输出 1+2+...+n 的和。",
+      "askFlow": [
+        "询问整数 n"
+      ],
+      "outputRule": "输出从 1 累加到 n 的总和；n=0 时输出 0。",
+      "compareMode": "number",
+      "quickEntry": "1 => 1 => 20 => 公开 1：最小正数\n5 => 15 => 20 => 公开 2：小范围循环\n10 => 55 => 20 => 公开 3：十项求和\n* 0 => 0 => 20 => 隐藏 1：零\n* 100 => 5050 => 20 => 隐藏 2：一百项",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "number",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：最小正数",
+              "input": "1",
+              "expectedOutput": "1",
+              "score": 20
+            },
+            {
+              "name": "公开 2：小范围循环",
+              "input": "5",
+              "expectedOutput": "15",
+              "score": 20
+            },
+            {
+              "name": "公开 3：十项求和",
+              "input": "10",
+              "expectedOutput": "55",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：零",
+              "input": "0",
+              "expectedOutput": "0",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：一百项",
+              "input": "100",
+              "expectedOutput": "5050",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA05",
+      "title": "统计及格人数",
+      "level": "循环",
+      "goal": "先输入人数 n，再输入 n 个成绩，输出大于等于 60 分的人数。",
+      "askFlow": [
+        "询问人数 n",
+        "循环 n 次，依次询问每个学生成绩"
+      ],
+      "outputRule": "输出成绩 >= 60 的数量。",
+      "compareMode": "number",
+      "quickEntry": "3\\n60\\n59\\n100 => 2 => 20 => 公开 1：边界 60\n5\\n0\\n100\\n60\\n61\\n59 => 3 => 20 => 公开 2：混合成绩\n1\\n59 => 0 => 20 => 公开 3：单人不及格\n* 4\\n60\\n60\\n60\\n60 => 4 => 20 => 隐藏 1：全部及格\n* 6\\n10\\n20\\n30\\n40\\n50\\n59 => 0 => 20 => 隐藏 2：全部不及格",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "number",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：边界 60",
+              "input": "3\n60\n59\n100",
+              "expectedOutput": "2",
+              "score": 20
+            },
+            {
+              "name": "公开 2：混合成绩",
+              "input": "5\n0\n100\n60\n61\n59",
+              "expectedOutput": "3",
+              "score": 20
+            },
+            {
+              "name": "公开 3：单人不及格",
+              "input": "1\n59",
+              "expectedOutput": "0",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：全部及格",
+              "input": "4\n60\n60\n60\n60",
+              "expectedOutput": "4",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：全部不及格",
+              "input": "6\n10\n20\n30\n40\n50\n59",
+              "expectedOutput": "0",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA06",
+      "title": "单词长度",
+      "level": "字符串",
+      "goal": "输入一个不含空格的单词，输出它的字符个数。",
+      "askFlow": [
+        "询问一个不含空格的单词 word"
+      ],
+      "outputRule": "输出 word 的长度。",
+      "compareMode": "number",
+      "quickEntry": "cat => 3 => 20 => 公开 1：短单词\nScratch => 7 => 20 => 公开 2：Scratch\nA => 1 => 20 => 公开 3：单字符\n* hello2026 => 9 => 20 => 隐藏 1：字母数字混合\n* algorithm => 9 => 20 => 隐藏 2：长单词",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "number",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：短单词",
+              "input": "cat",
+              "expectedOutput": "3",
+              "score": 20
+            },
+            {
+              "name": "公开 2：Scratch",
+              "input": "Scratch",
+              "expectedOutput": "7",
+              "score": 20
+            },
+            {
+              "name": "公开 3：单字符",
+              "input": "A",
+              "expectedOutput": "1",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：字母数字混合",
+              "input": "hello2026",
+              "expectedOutput": "9",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：长单词",
+              "input": "algorithm",
+              "expectedOutput": "9",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA07",
+      "title": "摄氏温度转华氏温度",
+      "level": "表达式",
+      "goal": "输入摄氏温度 c，输出对应华氏温度 f。",
+      "askFlow": [
+        "询问摄氏温度 c"
+      ],
+      "outputRule": "按公式 f = c * 9 / 5 + 32 输出结果。",
+      "compareMode": "number",
+      "quickEntry": "0 => 32 => 20 => 公开 1：冰点\n100 => 212 => 20 => 公开 2：沸点\n-40 => -40 => 20 => 公开 3：相等点\n* 37 => 98.6 => 20 => 隐藏 1：体温附近\n* 25 => 77 => 20 => 隐藏 2：常温",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "number",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：冰点",
+              "input": "0",
+              "expectedOutput": "32",
+              "score": 20
+            },
+            {
+              "name": "公开 2：沸点",
+              "input": "100",
+              "expectedOutput": "212",
+              "score": 20
+            },
+            {
+              "name": "公开 3：相等点",
+              "input": "-40",
+              "expectedOutput": "-40",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：体温附近",
+              "input": "37",
+              "expectedOutput": "98.6",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：常温",
+              "input": "25",
+              "expectedOutput": "77",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "pid": "SA08",
+      "title": "一组数的最小值和最大值",
+      "level": "循环与比较",
+      "goal": "先输入 n，再输入 n 个整数，输出最小值和最大值。",
+      "askFlow": [
+        "询问整数个数 n",
+        "循环 n 次，依次询问每个整数"
+      ],
+      "outputRule": "输出格式为“最小值 最大值”，中间用一个空格分隔。",
+      "compareMode": "tokens",
+      "quickEntry": "5\\n3\\n1\\n9\\n-2\\n8 => -2 9 => 20 => 公开 1：普通序列\n1\\n7 => 7 7 => 20 => 公开 2：单个数\n4\\n-5\\n-1\\n-9\\n-3 => -9 -1 => 20 => 公开 3：全为负数\n* 6\\n2\\n2\\n2\\n9\\n9\\n0 => 0 9 => 20 => 隐藏 1：存在重复\n* 5\\n100\\n-100\\n50\\n0\\n99 => -100 100 => 20 => 隐藏 2：范围较大",
+      "judgeConfig": {
+        "schemaVersion": 2,
+        "totalScore": 100,
+        "algorithm": {
+          "target": "Stage",
+          "inputVariable": "input",
+          "outputVariable": "output",
+          "compareMode": "tokens",
+          "numericTolerance": 1e-06,
+          "waitMs": 1000,
+          "timeoutMs": 6000,
+          "cases": [
+            {
+              "name": "公开 1：普通序列",
+              "input": "5\n3\n1\n9\n-2\n8",
+              "expectedOutput": "-2 9",
+              "score": 20
+            },
+            {
+              "name": "公开 2：单个数",
+              "input": "1\n7",
+              "expectedOutput": "7 7",
+              "score": 20
+            },
+            {
+              "name": "公开 3：全为负数",
+              "input": "4\n-5\n-1\n-9\n-3",
+              "expectedOutput": "-9 -1",
+              "score": 20
+            },
+            {
+              "name": "隐藏 1：存在重复",
+              "input": "6\n2\n2\n2\n9\n9\n0",
+              "expectedOutput": "0 9",
+              "score": 20,
+              "hidden": true
+            },
+            {
+              "name": "隐藏 2：范围较大",
+              "input": "5\n100\n-100\n50\n0\n99",
+              "expectedOutput": "-100 100",
+              "score": 20,
+              "hidden": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

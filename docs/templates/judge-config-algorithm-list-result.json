@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "algorithm": {
+    "target": "Stage",
+    "inputMode": "list",
+    "inputList": "list",
+    "outputMode": "variable",
+    "outputVariable": "result",
+    "compareMode": "exact",
+    "waitMs": 1000,
+    "timeoutMs": 6000,
+    "cases": [
+      {
+        "name": "样例 1",
+        "input": [13, 15, 7, 12, 9, 17, 21, 5, 4, 19],
+        "expectedOutput": "9#12#21#19#4#5#17#7#15#13",
+        "score": 50
+      },
+      {
+        "name": "样例 2",
+        "input": [5, 10, 48, 81, 50, 20, 85, 90, 60, 30],
+        "expectedOutput": "48#81#30#60#90#85#20#50#10#5",
+        "score": 50,
+        "hidden": true
+      }
+    ]
+  }
+}

@@ -29,6 +29,10 @@ interface ScratchVmRuntime {
   targets?: ScratchVmTarget[];
   getTargetForStage?: () => ScratchVmTarget | undefined;
   getSpriteTargetByName?: (name: string) => ScratchVmTarget | undefined;
+  on?: (event: string, listener: (...args: unknown[]) => void) => void;
+  off?: (event: string, listener: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, listener: (...args: unknown[]) => void) => void;
+  emit?: (event: string, ...args: unknown[]) => boolean;
 }
 
 interface ScratchVm {
@@ -58,6 +62,12 @@ interface AlgorithmCaseContext {
   caseConfig: ScratchAlgorithmCase;
   loadedVm: LoadedScratchVm;
   projectBuffer: Buffer;
+}
+
+interface AlgorithmRuntimeCapture {
+  lastSay?: string;
+  answerCount: number;
+  cleanup: () => void;
 }
 
 const requireFromHere = createRequire(__filename);
@@ -120,21 +130,27 @@ async function runAlgorithmCase(context: AlgorithmCaseContext): Promise<ScratchJ
   vm.setTurboMode?.(false);
   await vm.loadProject(projectBuffer);
 
-  const inputResult = writeInput(vm, config, caseConfig.input);
-  if (!inputResult.ok) {
-    return algorithmFailure(caseConfig, inputResult.message, {
-      maxScore: caseScore(caseConfig),
-    });
-  }
+  const runtimeCapture = installAlgorithmRuntimeCapture(vm, config, caseConfig.input);
+  let outputResult: { ok: true; value: unknown } | { ok: false; message: string };
+  try {
+    const inputResult = writeInput(vm, config, caseConfig.input);
+    if (!inputResult.ok) {
+      return algorithmFailure(caseConfig, inputResult.message, {
+        maxScore: caseScore(caseConfig),
+      });
+    }
 
-  vm.greenFlag();
-  await delay(normalizeWaitMs(config.waitMs ?? 1000));
+    vm.greenFlag();
+    await delay(normalizeWaitMs(config.waitMs ?? 1000));
 
-  const outputResult = readOutput(vm, config);
-  if (!outputResult.ok) {
-    return algorithmFailure(caseConfig, outputResult.message, {
-      maxScore: caseScore(caseConfig),
-    });
+    outputResult = readOutput(vm, config, runtimeCapture);
+    if (!outputResult.ok) {
+      return algorithmFailure(caseConfig, outputResult.message, {
+        maxScore: caseScore(caseConfig),
+      });
+    }
+  } finally {
+    runtimeCapture.cleanup();
   }
 
   const compareMode = caseConfig.compareMode || config.compareMode || 'trim';
@@ -176,12 +192,37 @@ function writeInput(
   config: ScratchAlgorithmConfig,
   input: ScratchAlgorithmValue,
 ): { ok: true } | { ok: false; message: string } {
+  if (config.inputMode === 'ask') return { ok: true };
+
   const targetName = config.target;
   const inputVariableName = config.inputVariable || 'input';
   const inputListName = config.inputList || 'input';
+  const inputIsEmpty = isEmptyAlgorithmValue(input);
+
+  if (config.inputMode === 'variable') {
+    const scalarVariable = findVariable(vm, targetName, inputVariableName, '');
+    if (!scalarVariable) {
+      return inputIsEmpty
+        ? { ok: true }
+        : { ok: false, message: `Input variable was not found: ${inputVariableName}.` };
+    }
+    scalarVariable.value = algorithmValueToText(input);
+    return { ok: true };
+  }
+
+  if (config.inputMode === 'list') {
+    const listVariable = findVariable(vm, targetName, inputListName, 'list');
+    if (!listVariable) {
+      return inputIsEmpty
+        ? { ok: true }
+        : { ok: false, message: `Input list was not found: ${inputListName}.` };
+    }
+    listVariable.value = algorithmValueToList(input, config.inputSplit || 'lines');
+    return { ok: true };
+  }
+
   const scalarVariable = findVariable(vm, targetName, inputVariableName, '');
   const listVariable = findVariable(vm, targetName, inputListName, 'list');
-  const inputIsEmpty = isEmptyAlgorithmValue(input);
 
   if (!scalarVariable && !listVariable) {
     return inputIsEmpty
@@ -197,13 +238,49 @@ function writeInput(
 function readOutput(
   vm: ScratchVm,
   config: ScratchAlgorithmConfig,
+  runtimeCapture: AlgorithmRuntimeCapture,
+): { ok: true; value: unknown } | { ok: false; message: string } {
+  if (config.outputMode === 'say') {
+    if (runtimeCapture.lastSay !== undefined) return { ok: true, value: runtimeCapture.lastSay };
+    return {
+      ok: false,
+      message: 'Scratch say output was not produced.',
+    };
+  }
+
+  if (config.outputMode === 'variable') return readScalarOutput(vm, config);
+  if (config.outputMode === 'list') return readListOutput(vm, config);
+
+  const scalarOutput = readScalarOutput(vm, config);
+  if (scalarOutput.ok) return scalarOutput;
+  const listOutput = readListOutput(vm, config);
+  if (listOutput.ok) return listOutput;
+  return {
+    ok: false,
+    message: scalarOutput.message,
+  };
+}
+
+function readScalarOutput(
+  vm: ScratchVm,
+  config: ScratchAlgorithmConfig,
 ): { ok: true; value: unknown } | { ok: false; message: string } {
   const targetName = config.target;
   const outputVariableName = config.outputVariable || 'output';
-  const outputListName = config.outputList || 'output';
   const scalarVariable = findVariable(vm, targetName, outputVariableName, '');
   if (scalarVariable) return { ok: true, value: scalarVariable.value };
+  return {
+    ok: false,
+    message: `Output variable was not found: ${outputVariableName}.`,
+  };
+}
 
+function readListOutput(
+  vm: ScratchVm,
+  config: ScratchAlgorithmConfig,
+): { ok: true; value: unknown } | { ok: false; message: string } {
+  const targetName = config.target;
+  const outputListName = config.outputList || 'output';
   const listVariable = findVariable(vm, targetName, outputListName, 'list');
   if (listVariable) {
     const value = Array.isArray(listVariable.value)
@@ -214,8 +291,56 @@ function readOutput(
 
   return {
     ok: false,
-    message: `Output variable/list was not found: ${outputVariableName}.`,
+    message: `Output list was not found: ${outputListName}.`,
   };
+}
+
+function installAlgorithmRuntimeCapture(
+  vm: ScratchVm,
+  config: ScratchAlgorithmConfig,
+  input: ScratchAlgorithmValue,
+): AlgorithmRuntimeCapture {
+  const runtime = vm.runtime;
+  const listeners: Array<{ event: string; listener: (...args: unknown[]) => void }> = [];
+  const capture: AlgorithmRuntimeCapture = {
+    answerCount: 0,
+    cleanup: () => {
+      for (const item of listeners) {
+        runtime?.off?.(item.event, item.listener);
+        runtime?.removeListener?.(item.event, item.listener);
+      }
+    },
+  };
+
+  if (!runtime?.on) return capture;
+
+  if (config.outputMode === 'say') {
+    const sayListener = (...args: unknown[]) => {
+      const message = String(args[2] ?? args[1] ?? args[0] ?? '');
+      if (!message) return;
+      if (config.inputMode === 'ask' && capture.answerCount === 0) return;
+      capture.lastSay = message;
+    };
+    runtime.on('SAY', sayListener);
+    listeners.push({ event: 'SAY', listener: sayListener });
+  }
+
+  if (config.inputMode === 'ask' && runtime.emit) {
+    const answers = algorithmValueToAnswers(input);
+    let index = 0;
+    const questionListener = () => {
+      const answer = answers[Math.min(index, Math.max(answers.length - 1, 0))] ?? '';
+      index += 1;
+      setTimeout(() => {
+        capture.answerCount += 1;
+        runtime.emit?.('ANSWER', answer);
+      }, 0);
+    };
+    runtime.on('QUESTION', questionListener);
+    listeners.push({ event: 'QUESTION', listener: questionListener });
+  }
+
+  return capture;
 }
 
 function findVariable(
@@ -292,6 +417,11 @@ function algorithmValueToList(value: ScratchAlgorithmValue, split: ScratchAlgori
     default:
       return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   }
+}
+
+function algorithmValueToAnswers(value: ScratchAlgorithmValue): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item));
+  return [algorithmValueToText(value)];
 }
 
 function algorithmFailure(

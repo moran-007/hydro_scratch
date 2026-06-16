@@ -1,12 +1,21 @@
 # Hydro Scratch 插件安装与更新
 
-当前版本：`0.6.13`
+当前版本：`0.6.14`
 
 推荐文件：
 
-- 首次安装：`release/hydro-plugin-scratch-0.6.13.tgz`
-- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.13.zip`
-- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.13.tgz`
+- 首次安装：`release/hydro-plugin-scratch-0.6.14.tgz`
+- 已安装后的覆盖更新：`release/hydro-plugin-scratch-update-0.6.14.zip`
+- Linux 服务器覆盖更新：`release/hydro-plugin-scratch-update-0.6.14.tgz`
+
+## 本次更新 0.6.14
+
+- 算法题输入输出逻辑重构：新增 `inputMode` 和 `outputMode`，支持“询问回答输入、变量输入、列表输入”和“角色说出结果、变量输出、列表输出”。
+- 支持 Scratch 问答式算法题自动判题：判题器会监听“询问并等待”，按测试点自动回答，并读取角色最后一次“说”内容作为输出。
+- 支持列表数据题：可把测试点 JSON 数组直接写入 Scratch 列表，再读取 `result` 等指定变量作为输出，适合排序、筛选、统计题。
+- 创建页、编辑页、配置页新增“输入方式/输出方式”下拉选项，老师无需手写 JSON 即可切换问答题、变量题、列表题。
+- 算法题示例和教师模板更新为中文问答题与列表排序题，新增 `docs/templates/judge-config-algorithm-list-result.json`。
+- 补充自动测试：覆盖问答式 `ask/answer/say`、重复询问、列表输入、`result` 变量输出和旧版变量/列表兼容逻辑。
 
 ## 本次更新 0.6.13
 

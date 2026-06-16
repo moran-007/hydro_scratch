@@ -5,7 +5,9 @@ import type {
   ScratchAlgorithmCase,
   ScratchAlgorithmCompareMode,
   ScratchAlgorithmConfig,
+  ScratchAlgorithmInputMode,
   ScratchAlgorithmInputSplit,
+  ScratchAlgorithmOutputMode,
   ScratchAlgorithmValue,
   ScratchDynamicCheck,
   ScratchDynamicComparison,
@@ -114,6 +116,18 @@ const ALGORITHM_INPUT_SPLITS = new Set([
   'none',
   'lines',
   'tokens',
+]);
+
+const ALGORITHM_INPUT_MODES = new Set([
+  'variable',
+  'list',
+  'ask',
+]);
+
+const ALGORITHM_OUTPUT_MODES = new Set([
+  'variable',
+  'list',
+  'say',
 ]);
 
 export function defaultJudgeConfig(maxScore: number): ScratchJudgeConfig {
@@ -516,8 +530,10 @@ function parseAlgorithmConfig(input: unknown): ScratchAlgorithmConfig | undefine
   if (!isPlainObject(input)) throw new Error('judgeConfig.algorithm must be an object.');
   return {
     target: optionalString(input.target),
+    inputMode: parseAlgorithmInputMode(input.inputMode, 'judgeConfig.algorithm.inputMode'),
     inputVariable: optionalString(input.inputVariable),
     inputList: optionalString(input.inputList),
+    outputMode: parseAlgorithmOutputMode(input.outputMode, 'judgeConfig.algorithm.outputMode'),
     outputVariable: optionalString(input.outputVariable),
     outputList: optionalString(input.outputList),
     inputSplit: parseAlgorithmInputSplit(input.inputSplit, 'judgeConfig.algorithm.inputSplit'),
@@ -575,6 +591,20 @@ function parseAlgorithmInputSplit(input: unknown, name: string): ScratchAlgorith
   if (input === undefined || input === null || input === '') return undefined;
   const value = String(input);
   if (ALGORITHM_INPUT_SPLITS.has(value)) return value as ScratchAlgorithmInputSplit;
+  throw new Error(`${name} is not supported: ${value}`);
+}
+
+function parseAlgorithmInputMode(input: unknown, name: string): ScratchAlgorithmInputMode | undefined {
+  if (input === undefined || input === null || input === '') return undefined;
+  const value = String(input);
+  if (ALGORITHM_INPUT_MODES.has(value)) return value as ScratchAlgorithmInputMode;
+  throw new Error(`${name} is not supported: ${value}`);
+}
+
+function parseAlgorithmOutputMode(input: unknown, name: string): ScratchAlgorithmOutputMode | undefined {
+  if (input === undefined || input === null || input === '') return undefined;
+  const value = String(input);
+  if (ALGORITHM_OUTPUT_MODES.has(value)) return value as ScratchAlgorithmOutputMode;
   throw new Error(`${name} is not supported: ${value}`);
 }
 
