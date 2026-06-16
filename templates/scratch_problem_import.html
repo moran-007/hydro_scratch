@@ -4,27 +4,25 @@
   <div class="medium-8 columns">
     <div class="section">
       <div class="section__header">
-        <h1 class="section__title">Import Scratch Problem Package</h1>
+        <h1 class="section__title">导入 Scratch 题目包</h1>
       </div>
       <div class="section__body">
         <form method="post" enctype="multipart/form-data">
-          <p>
-            <input type="file" name="file" accept=".zip" required>
-          </p>
+          <p><input type="file" name="file" accept=".zip" required></p>
           {{ form.form_text({
-              label:'Problem ID Override',
+              label:'覆盖题号',
               name:'pid',
-              help_text:'Optional. Leave empty to use the pid in problem.yaml, or Hydro numeric ID if none is provided.'
+              help_text:'可选。留空时优先使用 problem.yaml 中的题号；仍为空则使用 Hydro 自动生成的数字题号。'
             }) }}
           {{ form.form_checkbox({
-              label:'Hidden',
+              label:'隐藏题目',
               name:'hidden',
               value:false
             }) }}
           <div class="row">
             <div class="columns">
-              <input type="submit" class="rounded primary button" value="{{ _('Import') }}">
-              <a class="rounded button" href="{{ createUrl }}">{{ _('Back') }}</a>
+              <input type="submit" class="rounded primary button" value="导入题目包">
+              <a class="rounded button" href="{{ createUrl }}">返回创建页</a>
             </div>
           </div>
         </form>
@@ -34,18 +32,18 @@
   <div class="medium-4 columns">
     <div class="section side">
       <div class="section__header">
-        <h1 class="section__title">Package Format</h1>
+        <h1 class="section__title">题目包格式</h1>
       </div>
       <div class="section__body typo">
-        <p>Upload a zip package with these files:</p>
+        <p>请上传 zip 压缩包，建议包含以下文件：</p>
         <ul>
-          <li><code>problem.yaml</code></li>
-          <li><code>statement.md</code></li>
-          <li><code>scratch-judge.json</code></li>
-          <li><code>template.sb3</code> optional</li>
+          <li><code>problem.yaml</code>：题目标题、标签、Scratch 配置。</li>
+          <li><code>statement.md</code>：中文题面。</li>
+          <li><code>scratch-judge.json</code>：自动测评配置。</li>
+          <li><code>template.sb3</code>：可选的模板作品。</li>
         </ul>
-        <p>The imported item is a normal Hydro problem plus Scratch auto-judge configuration.</p>
-        <p><a class="rounded button" href="{{ guideUrl }}">题目及测试点格式文档</a></p>
+        <p>导入后会生成普通 Hydro 题目，并附带 Scratch 答题和自动测评配置。</p>
+        <p><a class="rounded button" href="{{ guideUrl }}">下载题目及测试点格式说明</a></p>
       </div>
     </div>
   </div>

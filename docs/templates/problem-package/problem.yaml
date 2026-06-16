@@ -8,6 +8,7 @@ tags:
   - 自动测评
 scratch:
   enabled: true
+  problemKind: task
   submitMode: both
   judgeMode: hybrid
   maxScore: 100

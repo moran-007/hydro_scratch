@@ -60,19 +60,19 @@ function canOpenScratchReviewQueue(pluginConfig: PluginConfig, handler: any) {
 export default definePlugin<PluginConfig>({
   name: 'hydro-plugin-scratch',
   schema: Schema.object({
-    enabledDomains: Schema.array(Schema.string()).default(DEFAULT_PLUGIN_CONFIG.enabledDomains).description('Domain IDs where the Scratch plugin is enabled. Empty enables all domains.'),
-    storagePrefix: Schema.string().default(DEFAULT_PLUGIN_CONFIG.storagePrefix).description('Storage path prefix for Scratch projects'),
-    maxProjectSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxProjectSizeMB).min(1).description('Maximum .sb3 upload size in MB'),
-    maxUnpackedSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxUnpackedSizeMB).min(1).description('Maximum unpacked .sb3 size in MB'),
-    maxAssetSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxAssetSizeMB).min(1).description('Maximum single asset size in MB'),
-    maxAssetCount: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxAssetCount).min(1).description('Maximum asset count'),
-    maxProjectJsonSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxProjectJsonSizeMB).min(1).description('Maximum project.json size in MB'),
-    maxScore: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxScore).min(1).description('Default manual score maximum'),
-    previewPlayerUrl: Schema.string().default(DEFAULT_PLUGIN_CONFIG.previewPlayerUrl).description('Optional external preview player URL. Empty uses the bundled Scratch editor preview.'),
-    scratchEditorUrl: Schema.string().default(DEFAULT_PLUGIN_CONFIG.scratchEditorUrl).description('Embedded Scratch editor URL for side-by-side editing.'),
-    scratchEditorOrigin: Schema.string().default(DEFAULT_PLUGIN_CONFIG.scratchEditorOrigin).description('Allowed postMessage origin for the embedded Scratch editor.'),
-    scratchAssetHost: Schema.string().default(DEFAULT_PLUGIN_CONFIG.scratchAssetHost).description('Scratch asset host path or URL passed into the embedded editor.'),
-  }).description('Scratch MVP'),
+    enabledDomains: Schema.array(Schema.string()).default(DEFAULT_PLUGIN_CONFIG.enabledDomains).description('启用 Scratch 插件的域 ID。留空表示所有域都启用。'),
+    storagePrefix: Schema.string().default(DEFAULT_PLUGIN_CONFIG.storagePrefix).description('Scratch 作品在 Hydro 存储中的路径前缀'),
+    maxProjectSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxProjectSizeMB).min(1).description('.sb3 作品文件大小上限 MB'),
+    maxUnpackedSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxUnpackedSizeMB).min(1).description('.sb3 解压后总大小上限 MB'),
+    maxAssetSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxAssetSizeMB).min(1).description('单个素材文件大小上限 MB'),
+    maxAssetCount: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxAssetCount).min(1).description('素材数量上限'),
+    maxProjectJsonSizeMB: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxProjectJsonSizeMB).min(1).description('project.json 大小上限 MB'),
+    maxScore: Schema.number().default(DEFAULT_PLUGIN_CONFIG.maxScore).min(1).description('默认满分'),
+    previewPlayerUrl: Schema.string().default(DEFAULT_PLUGIN_CONFIG.previewPlayerUrl).description('可选外部预览播放器地址。留空时使用内置 Scratch 编辑器预览。'),
+    scratchEditorUrl: Schema.string().default(DEFAULT_PLUGIN_CONFIG.scratchEditorUrl).description('内嵌 Scratch 编辑器地址'),
+    scratchEditorOrigin: Schema.string().default(DEFAULT_PLUGIN_CONFIG.scratchEditorOrigin).description('允许接收 postMessage 的 Scratch 编辑器来源'),
+    scratchAssetHost: Schema.string().default(DEFAULT_PLUGIN_CONFIG.scratchAssetHost).description('传给内嵌编辑器的 Scratch 素材地址'),
+  }).description('Scratch 自动测评插件'),
   async apply(ctx, rawConfig) {
     const config = normalizePluginConfig(rawConfig);
     registerScratchLanguage();
@@ -82,7 +82,7 @@ export default definePlugin<PluginConfig>({
     ctx.injectUI?.(
       'ProblemAdd',
       'scratch_problem_create',
-      { icon: 'edit', text: 'Scratch Problem' },
+      { icon: 'edit', text: 'Scratch 题目' },
       enabledDomainChecker,
     );
     ctx.injectUI?.('Nav', 'scratch_review_queue', { prefix: 'scratch_review_queue' }, reviewQueueChecker);

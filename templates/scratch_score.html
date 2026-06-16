@@ -5,24 +5,24 @@
   <div class="medium-8 columns">
     <div class="section">
       <div class="section__header">
-        <h1 class="section__title">{{ _('Scratch Code Preview') }}</h1>
+        <h1 class="section__title">Scratch 作品预览</h1>
         <div class="section__tools">
           {% if previewEditorUrl %}
           <button class="rounded button" type="button" id="scratch-score-float">
-            {{ _('Floating Window') }}
+            浮动窗口
           </button>
           {% endif %}
-          <a class="rounded button" href="{{ downloadUrl }}">{{ _('Download') }}</a>
+          <a class="rounded button" href="{{ downloadUrl }}">下载作品</a>
         </div>
       </div>
       <div class="section__body">
         {% if previewEditorUrl %}
         <div id="scratch-score-shell" class="scratch-score-shell">
-          <div id="scratch-score-status" class="typo scratch-score-status">Loading submitted Scratch project...</div>
+          <div id="scratch-score-status" class="typo scratch-score-status">正在加载提交作品...</div>
           <iframe
             id="scratch-score-frame"
             class="scratch-score-frame"
-            title="Scratch code preview"
+            title="Scratch 作品预览"
             src="{{ previewEditorUrl }}"
             allow="accelerometer; camera; microphone"
             allowfullscreen
@@ -30,19 +30,17 @@
           ></iframe>
         </div>
         {% else %}
-        <p class="typo">
-          Preview player is not configured. Use the download button to inspect this submission.
-        </p>
+        <p class="typo">尚未配置预览播放器，请先下载作品文件后查看。</p>
         {% endif %}
       </div>
     </div>
 
     <div class="section">
       <div class="section__header">
-        <h1 class="section__title">{{ _('Manual Score') }}</h1>
+        <h1 class="section__title">手动评分</h1>
         <div class="section__tools">
           <button class="rounded primary button" form="scratch-score-form" type="submit">
-            {{ _('Save Score') }}
+            保存评分
           </button>
         </div>
       </div>
@@ -52,14 +50,14 @@
           <input type="hidden" name="returnUrl" value="{{ returnUrl }}">
           {% endif %}
           {{ form.form_text({
-              label:'Score',
+              label:'分数',
               name:'score',
               value:submission.score if submission.score !== undefined else rdoc.score,
               required:true,
-              help_text:'Enter a value from 0 to the maximum score.'
+              help_text:'请输入 0 到满分之间的分值。'
             }) }}
           {{ form.form_textarea({
-              label:'Comment',
+              label:'评语',
               name:'comment',
               value:submission.manualComment or '',
               rows:6
@@ -71,19 +69,19 @@
   <div class="medium-4 columns">
     <div class="section side">
       <div class="section__header">
-        <h1 class="section__title">{{ _('Submission') }}</h1>
+        <h1 class="section__title">提交信息</h1>
       </div>
       <div class="section__body typo">
         <dl class="large horizontal">
-          <dt>{{ _('Problem') }}</dt>
+          <dt>题目</dt>
           <dd><a href="{{ url('problem_detail', pid=pdoc.docId) }}">{{ pdoc.title }}</a></dd>
-          <dt>{{ _('Record') }}</dt>
+          <dt>记录</dt>
           <dd><a href="{{ recordUrl }}">{{ rdoc._id }}</a></dd>
-          <dt>{{ _('User') }}</dt>
+          <dt>用户</dt>
           <dd>{{ submission.userId }}</dd>
-          <dt>{{ _('File') }}</dt>
+          <dt>文件</dt>
           <dd>{{ submission.originalName }}</dd>
-          <dt>{{ _('Score') }}</dt>
+          <dt>分数</dt>
           <dd>{{ rdoc.score }} / {{ submission.maxScore }}</dd>
         </dl>
       </div>
@@ -91,18 +89,18 @@
     {% if submission.autoJudgeResult %}
     <div class="section side scratch-auto-judge">
       <div class="section__header">
-        <h1 class="section__title">Auto Judge Reference</h1>
+        <h1 class="section__title">自动测评参考</h1>
       </div>
       <div class="section__body typo">
         <p>
           <strong>{{ submission.autoJudgeResult.totalScore }} / {{ submission.autoJudgeResult.maxScore }}</strong>
-          - Passed {{ submission.autoJudgeResult.summary.passedChecks }} / {{ submission.autoJudgeResult.summary.totalChecks }} checks
+          - 通过 {{ submission.autoJudgeResult.summary.passedChecks }} / {{ submission.autoJudgeResult.summary.totalChecks }} 个测试点
           - {{ submission.autoJudgeResult.mode }}
         </p>
         <ul class="scratch-auto-judge__list">
           {% for detail in submission.autoJudgeResult.details %}
           <li class="{{ 'is-pass' if detail.passed else 'is-fail' }}">
-            <strong>{{ 'PASS' if detail.passed else 'FAIL' }}</strong>
+            <strong>{{ '通过' if detail.passed else '未通过' }}</strong>
             {% if detail.category %}<small>[{{ detail.category }}]</small>{% endif %}
             {{ detail.name }}: {{ detail.score }} / {{ detail.maxScore }}
             <br>
@@ -118,10 +116,10 @@
     {% elif submission.autoJudgeError %}
     <div class="section side">
       <div class="section__header">
-        <h1 class="section__title">Auto Judge Reference</h1>
+        <h1 class="section__title">自动测评参考</h1>
       </div>
       <div class="section__body typo">
-        <p>Automatic judging failed. This submission can still be scored manually.</p>
+        <p>自动测评失败，该提交仍可进行手动评分。</p>
         <pre>{{ submission.autoJudgeError }}</pre>
       </div>
     </div>
@@ -227,7 +225,7 @@
     if (!shell) return;
     floating = enabled;
     shell.classList.toggle('is-floating', enabled);
-    if (floatButton) floatButton.textContent = enabled ? '{{ _("Dock Preview") }}' : '{{ _("Floating Window") }}';
+    if (floatButton) floatButton.textContent = enabled ? '固定预览' : '浮动窗口';
     if (enabled) {
       const rect = shell.getBoundingClientRect();
       const width = Math.min(Math.max(rect.width || 720, 520), window.innerWidth - 32);
@@ -277,7 +275,7 @@
   async function loadProject() {
     if (loaded || !frame || !frame.contentWindow) return;
     try {
-      setStatus('Loading submitted project...');
+      setStatus('正在加载提交作品...');
       const response = await fetch(PROJECT_URL, { credentials: 'include' });
       if (!response.ok) throw new Error('HTTP ' + response.status);
       const content = await response.arrayBuffer();
@@ -290,7 +288,7 @@
       loaded = true;
     } catch (error) {
       console.error('Scratch score preview failed:', error);
-      setStatus('Preview failed to load. Please use the download button to inspect this submission.', true);
+      setStatus('预览加载失败，请下载作品文件后查看。', true);
     }
   }
 
@@ -298,9 +296,9 @@
     if (event.origin !== editorOrigin()) return;
     const data = event.data || {};
     if (data.type === 'SCRATCH_OJ_LOAD_SUCCESS') {
-      setStatus('Preview loaded.');
+      setStatus('预览已加载。');
     } else if (data.type === 'SCRATCH_OJ_LOAD_ERROR') {
-      setStatus(data.message || 'Preview failed to load.', true);
+      setStatus(data.message || '预览加载失败。', true);
     }
   });
 

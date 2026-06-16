@@ -1005,20 +1005,19 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
   }
 
   function statusLabel(value, result, report) {
-    if (result && typeof result.status === 'string') return result.status;
+    if (result && typeof result.status === 'string') {
+      if (/waiting/i.test(result.status)) return '等待测评';
+      if (/accepted/i.test(result.status)) return '通过';
+      if (/wrong answer/i.test(result.status)) return '未通过';
+      return result.status;
+    }
     if (report && report.autoJudge && report.autoJudge.result) {
-      return report.autoJudge.result.passed ? 'Accepted' : 'Wrong Answer';
+      return report.autoJudge.result.passed ? '通过' : '未通过';
     }
     const numeric = Number(value);
-    if (numeric === 1) return 'Accepted';
-    if (numeric === 2) return 'Wrong Answer';
-    return 'Submitted';
-    /*
-    return '已提交'; /*
+    if (numeric === 1) return '通过';
+    if (numeric === 2) return '未通过';
     return '已提交';
-  }
-
-    */
   }
 
   function shortHydroStatus(status, passed, waiting) {
@@ -1033,12 +1032,7 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
     if (/system error/i.test(text)) return 'SE';
     if (/ignored/i.test(text)) return 'IGN';
     if (/waiting|running|compiling|fetched/i.test(text)) return '--';
-    return text || 'Submitted';
-    /*
     return text || '已提交';
-  }
-
-    */
   }
 
   function shouldShowNumericScore(isContest, contestRule, hasScore) {
@@ -1066,7 +1060,7 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
     const displayMax = showNumericScore ? '/ ' + (maxScore || '--') : '';
     const displayText = showNumericScore ? String(score) + '/' + (maxScore || '--') : shortStatus;
     const displayStatus = isContest && !showNumericScore && contestRule !== 'acm'
-      ? (passed ? 'Accepted' : 'Submitted; score follows contest rule')
+      ? (passed ? '通过' : '已提交，成绩按比赛规则显示')
       : status;
     return {
       waiting: waiting,
@@ -1168,10 +1162,7 @@ body.scratch-editor-page [class*="zoom"][class*="button"] {
       const report = await fetchSubmissionReport(result);
       const summary = showSubmissionScore(result, report);
       showScoreModal(summary);
-      setStatus(summary.displayText || (summary.score === undefined || summary.score === null ? 'Waiting' : summary.score + '/' + (summary.maxScore || '--')), '');
-      //
-      setStatus(summary.score === undefined || summary.score === null ? '等待测评' : summary.score + '/' + (summary.maxScore || '--'), '');
-      setStatus(summary.displayText || (summary.score === undefined || summary.score === null ? 'Waiting' : summary.score + '/' + (summary.maxScore || '--')), '');
+      setStatus(summary.displayText || (summary.score === undefined || summary.score === null ? '等待测评' : summary.score + '/' + (summary.maxScore || '--')), '');
     } catch (error) {
       console.error('Scratch submit failed:', error);
       setStatus('提交失败', 'error');

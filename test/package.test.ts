@@ -31,6 +31,7 @@ describe('Scratch problem packages', () => {
       statement: '# Scratch Package Test\n\nMove Player to x=100.',
       scratch: {
         enabled: true,
+        problemKind: 'algorithm',
         submitMode: 'both',
         judgeMode: 'hybrid',
         maxScore: 100,
@@ -81,6 +82,7 @@ describe('Scratch problem packages', () => {
         pid: 'scratchpkg1',
         title: 'Scratch Package Test',
         scratch: {
+          problemKind: 'algorithm',
           submitMode: 'both',
           judgeMode: 'hybrid',
           maxScore: 100,

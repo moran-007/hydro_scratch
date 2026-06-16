@@ -44,7 +44,7 @@
       {% endif %}
       <label class="scratch-submissions__filter-wide">
         比赛 / 作业名称
-        <input name="contest" value="{{ contestFilter }}" placeholder="按比赛名称筛选全场提交">
+        <input name="contest" value="{{ contestFilter }}" placeholder="按比赛或作业名称筛选">
       </label>
       <label>
         来源
@@ -70,12 +70,12 @@
     {% if contestFilter %}
     <div class="scratch-submissions__query-note">
       {% if contestMatches.length %}
-      已按比赛 / 作业名称 “{{ contestFilter }}” 查询：
+      已按比赛 / 作业名称“{{ contestFilter }}”查询：
       {% for contest in contestMatches %}
       <span>{{ contest.title }}</span>
       {% endfor %}
       {% else %}
-      未找到名称包含 “{{ contestFilter }}” 的比赛或作业。
+      未找到名称包含“{{ contestFilter }}”的比赛或作业。
       {% endif %}
     </div>
     {% endif %}

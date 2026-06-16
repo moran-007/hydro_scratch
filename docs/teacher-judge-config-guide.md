@@ -12,6 +12,158 @@
 /scratch/problem/:pid/config
 ```
 
+## 1.1 题目类型：任务题与算法题
+
+从 0.6.11 开始，Scratch 题目增加 `题目类型`：
+
+| 题目类型 | 配置入口 | 判题方式 | 适用场景 |
+| --- | --- | --- | --- |
+| `task` | `staticChecks` / `structureChecks` / `dynamicChecks` | 按任务点得分，和原来一致 | Scratch 教学任务、角色位置、积木顺序、变量结果检查 |
+| `algorithm` | `algorithm.cases` | 多组输入输出用例批量测试 | 类似传统 OJ 的算法题、计算题、字符串处理题 |
+
+老题目没有 `problemKind` 字段时，会自动按 `task` 处理，不影响已有题目。
+
+### 1.1.1 算法题学生约定
+
+算法题默认约定：
+
+- 输入放在 Scratch 变量 `input` 中。
+- 学生点击绿旗后读取 `input`，计算答案。
+- 输出写入 Scratch 变量 `output` 中。
+- 系统等待 `waitMs` 毫秒后读取 `output` 并与期望输出比较。
+
+如果希望使用列表输入，可以在配置中写：
+
+```json
+{
+  "algorithm": {
+    "inputList": "input",
+    "inputSplit": "lines",
+    "outputVariable": "output"
+  }
+}
+```
+
+`inputSplit` 可选：
+
+| 值 | 说明 |
+| --- | --- |
+| `lines` | 按行拆分输入，默认值 |
+| `tokens` | 按空白字符拆分输入 |
+| `none` | 不拆分，整个输入作为列表第 1 项 |
+
+### 1.1.2 算法题快速录入格式
+
+0.6.12 起，算法题不必优先手写 JSON。进入 Scratch 题目设置页，把题目类型设为 `算法题：批量输入输出测试` 并保存后，可以直接在“算法题测试点快速录入”中填写：
+
+```text
+输入 => 期望输出 => 分值 => 测试点名称
+```
+
+示例：
+
+```text
+21 => 42 => 25 => 样例 1
+3\n1 2 3 => 6 => 25 => 样例 2
+* 5\n10 20 30 40 50 => 150 => 50 => 隐藏测试
+```
+
+说明：
+
+- 每行一个测试点。
+- 多行输入请写成 `\n`。
+- 行首加 `*` 表示隐藏测试点，学生报告中不会显示实际输出和期望输出。
+- 输出比较方式建议默认使用“忽略首尾空白”；传统 OJ 风格的多空格、多换行输出可选“按空白分词比较”。
+- 若需要列表输入、数字误差、复杂动态操作，仍然可以展开“高级自动测评 JSON 配置”进行细调。
+
+快速录入保存后，会自动生成等价的 `algorithm.cases` 配置。
+
+### 1.1.3 算法题配置模板
+
+创建题目时把 `题目类型` 设置为 `算法题：批量输入输出测试`，`Judge Mode` 建议设置为 `Dynamic` 或 `Hybrid`，然后在 `Auto Judge Config` 中填写：
+
+```json
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "algorithm": {
+    "target": "Stage",
+    "inputVariable": "input",
+    "outputVariable": "output",
+    "compareMode": "trim",
+    "waitMs": 1000,
+    "timeoutMs": 6000,
+    "cases": [
+      {
+        "name": "样例 1",
+        "input": "21",
+        "expectedOutput": "42",
+        "score": 25,
+        "hint": "请从 input 变量读取输入，并把答案写入 output 变量。"
+      },
+      {
+        "name": "样例 2",
+        "input": "3\n1 2 3",
+        "expectedOutput": "6",
+        "score": 25
+      },
+      {
+        "name": "隐藏测试 1",
+        "input": "5\n10 20 30 40 50",
+        "expectedOutput": "150",
+        "score": 25,
+        "hidden": true
+      },
+      {
+        "name": "隐藏测试 2",
+        "input": "0",
+        "expectedOutput": "0",
+        "score": 25,
+        "hidden": true
+      }
+    ]
+  }
+}
+```
+
+同样的模板文件也放在：
+
+```text
+docs/templates/judge-config-algorithm-io.json
+```
+
+### 1.1.4 算法题字段说明
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `algorithm.target` | string | 不限制角色 | 指定从哪个角色或舞台读写变量，可写 `Stage` |
+| `algorithm.inputVariable` | string | `input` | 输入变量名 |
+| `algorithm.inputList` | string | `input` | 输入列表名，存在时会同步写入 |
+| `algorithm.outputVariable` | string | `output` | 输出变量名 |
+| `algorithm.outputList` | string | `output` | 输出列表名，变量不存在时读取列表 |
+| `algorithm.compareMode` | string | `trim` | 默认比较方式 |
+| `algorithm.numericTolerance` | number | `1e-9` | 数字比较允许误差 |
+| `algorithm.waitMs` | number | `1000` | 点击绿旗后等待多久读取输出 |
+| `algorithm.timeoutMs` | number | `max(5000, waitMs + 2000)` | 单个测试点超时时间 |
+| `algorithm.cases` | array | `[]` | 测试用例列表 |
+
+`compareMode` 可选：
+
+| 值 | 说明 |
+| --- | --- |
+| `exact` | 完全一致，保留首尾空白 |
+| `trim` | 忽略首尾空白，推荐默认 |
+| `tokens` | 按空白字符切分后比较，适合多空格/多换行输出 |
+| `number` | 按数字比较，使用 `numericTolerance` |
+
+### 1.1.5 注意事项
+
+- 算法题只根据 `algorithm.cases` 判题，不会执行任务题的 `staticChecks` / `structureChecks` / `dynamicChecks`。
+- 任务题仍然只根据原任务点判题，不会执行 `algorithm.cases`。
+- 算法题必须把 `Judge Mode` 设置为 `Dynamic` 或 `Hybrid`；`Manual` 不自动判题，`Static` 不运行 Scratch VM。
+- 隐藏测试点设置 `hidden: true` 后，学生报告中不会展示实际输出和期望输出。
+- Scratch 没有原生 stdin/stdout，所以本插件用变量或列表模拟输入输出。题面必须明确要求学生保留并使用 `input` / `output`。
+
 找到：
 
 ```text

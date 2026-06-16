@@ -290,6 +290,19 @@ beforeEach(() => {
 });
 
 describe('Scratch problem config upsert', () => {
+  it('ScratchProblemCreateHandler.prepare rejects a disabled domain before creating a problem', async () => {
+    const { ScratchProblemCreateHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemCreateHandler();
+    handler.pluginConfig = {
+      ...DEFAULT_PLUGIN_CONFIG,
+      enabledDomains: ['scratch'],
+    };
+
+    await expect(handler.prepare({ domainId: 'system' })).rejects.toThrow('Scratch plugin');
+    expect(hydroState.problemAdd).not.toHaveBeenCalled();
+  });
+
   it('首次写入时仅在 $setOnInsert 中设置 createdAt', async () => {
     const { ScratchModel } = await import('../src/model');
 
@@ -377,7 +390,7 @@ describe('Scratch problem config upsert', () => {
     );
     expect(handler.response).toMatchObject({
       body: { pid: 'P100' },
-      redirect: '/problem_detail/P100',
+      redirect: '/scratch_problem_edit/P100',
     });
     expect(storedDoc).toMatchObject({
       domainId: 'system',
@@ -390,6 +403,121 @@ describe('Scratch problem config upsert', () => {
     });
     expect(storedDoc.createdAt).toBeInstanceOf(Date);
     expect(storedDoc.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it('ScratchProblemCreateHandler.post initializes algorithm problems for automatic IO judging', async () => {
+    const { ScratchProblemCreateHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemCreateHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => true,
+    };
+
+    await expect(
+      handler.post('system', 'Algorithm Demo', 'Read input and write output.', 'P200', false, 'algorithm'),
+    ).resolves.toBeUndefined();
+
+    const [storedDoc] = hydroState.getDocs('scratch.problem');
+    expect(storedDoc).toMatchObject({
+      domainId: 'system',
+      problemId: 1001,
+      enabled: true,
+      problemKind: 'algorithm',
+      submitMode: 'editor',
+      judgeMode: 'dynamic',
+      maxScore: DEFAULT_PLUGIN_CONFIG.maxScore,
+      updatedBy: 11,
+    });
+  });
+
+  it('ScratchProblemCreateHandler.post saves one-stop algorithm judging settings with 10 quick IO cases', async () => {
+    const { ScratchProblemCreateHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemCreateHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => true,
+    };
+    handler.args = {
+      enabled: 'on',
+      problemKind: 'algorithm',
+      submitMode: 'both',
+      judgeMode: 'hybrid',
+      maxScore: '100',
+      allowDownloadTemplate: 'on',
+      algorithmTarget: 'Stage',
+      algorithmInputName: 'input',
+      algorithmOutputName: 'output',
+      algorithmCompareMode: 'tokens',
+      algorithmWaitMs: '300',
+      algorithmTimeoutMs: '2000',
+      algorithmCases: [
+        '1 => 1 => 5 => 单值输入',
+        '1 2 => 3 => 5 => 单行多个输入',
+        '2\\n3 => 5 => 10 => 多次输入',
+        '[1,2,3] => 6 => 10 => 列表数字输入',
+        '["a","b"] => a b => 10 => 列表字符串输入',
+        'true => 1 => 5 => 布尔输入',
+        '10 20 30 => 60 => 15 => 三数求和',
+        '0 => 0 => 5 => 零值',
+        '* 100 200 => 300 => 20 => 隐藏大数据',
+        '5\\n5\\n5 => 15 => 15 => 三行输入',
+      ].join('\n'),
+    };
+
+    await expect(
+      handler.post('system', 'Algorithm Demo', 'Read input and write output.', 'P201', false),
+    ).resolves.toBeUndefined();
+
+    const [storedDoc] = hydroState.getDocs('scratch.problem');
+    expect(handler.response).toMatchObject({
+      body: { pid: 'P201' },
+      redirect: '/scratch_problem_edit/P201',
+    });
+    expect(storedDoc).toMatchObject({
+      domainId: 'system',
+      problemId: 1001,
+      enabled: true,
+      problemKind: 'algorithm',
+      submitMode: 'both',
+      judgeMode: 'hybrid',
+      maxScore: 100,
+      judgeConfig: {
+        totalScore: 100,
+        algorithm: {
+          target: 'Stage',
+          inputVariable: 'input',
+          outputVariable: 'output',
+          compareMode: 'tokens',
+          waitMs: 300,
+          timeoutMs: 2000,
+        },
+      },
+    });
+    expect((storedDoc as any).judgeConfig.algorithm.cases).toHaveLength(10);
+    expect((storedDoc as any).judgeConfig.algorithm.cases[2]).toMatchObject({
+      name: '多次输入',
+      input: '2\n3',
+      expectedOutput: '5',
+      score: 10,
+      hidden: false,
+    });
+    expect((storedDoc as any).judgeConfig.algorithm.cases[3]).toMatchObject({
+      name: '列表数字输入',
+      input: [1, 2, 3],
+      expectedOutput: '6',
+      score: 10,
+    });
+    expect((storedDoc as any).judgeConfig.algorithm.cases[8]).toMatchObject({
+      name: '隐藏大数据',
+      hidden: true,
+      score: 20,
+    });
   });
 
   it('ScratchProblemEditHandler.post updates the problem and Scratch config together', async () => {
@@ -499,6 +627,82 @@ describe('Scratch problem config upsert', () => {
     });
   });
 
+  it('ScratchProblemConfigHandler.post stores compact algorithm IO test cases from the teacher form', async () => {
+    const { defaultProblemConfig } = await import('../src/config');
+    const { ScratchProblemConfigHandler } = await import('../src/http');
+
+    const handler = new ScratchProblemConfigHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.pdoc = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Algorithm title',
+    };
+    handler.scratchConfig = defaultProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG);
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => true,
+    };
+    handler.args = {
+      enabled: 'on',
+      problemKind: 'algorithm',
+      submitMode: 'editor',
+      judgeMode: 'dynamic',
+      maxScore: '100',
+      judgeConfig: JSON.stringify({ totalScore: 100, algorithm: { cases: [] } }),
+      algorithmTarget: 'Stage',
+      algorithmInputName: 'input',
+      algorithmOutputName: 'output',
+      algorithmCompareMode: 'tokens',
+      algorithmWaitMs: '500',
+      algorithmTimeoutMs: '3000',
+      algorithmCases: [
+        '1 2 => 3 => 30 => 样例 1',
+        '* 2\\n3 => 5 => 70 => 隐藏测试',
+      ].join('\n'),
+    };
+    handler.request = {};
+
+    await expect(handler.post()).resolves.toBeUndefined();
+
+    const [storedDoc] = hydroState.getDocs('scratch.problem');
+    expect(storedDoc).toMatchObject({
+      domainId: 'system',
+      problemId: 1001,
+      problemKind: 'algorithm',
+      judgeMode: 'dynamic',
+      judgeConfig: {
+        totalScore: 100,
+        algorithm: {
+          target: 'Stage',
+          inputVariable: 'input',
+          outputVariable: 'output',
+          compareMode: 'tokens',
+          waitMs: 500,
+          timeoutMs: 3000,
+          cases: [
+            {
+              name: '样例 1',
+              input: '1 2',
+              expectedOutput: '3',
+              score: 30,
+              hidden: false,
+            },
+            {
+              name: '隐藏测试',
+              input: '2\n3',
+              expectedOutput: '5',
+              score: 70,
+              hidden: true,
+            },
+          ],
+        },
+      },
+    });
+  });
+
   it('ScratchEditorHandler.get preserves contest/homework tid for editor submission', async () => {
     const { defaultProblemConfig } = await import('../src/config');
     const { ScratchEditorHandler } = await import('../src/editor');
@@ -532,6 +736,66 @@ describe('Scratch problem config upsert', () => {
       previewUrl: '/problem_detail/1001?scratch=0&tid=64f000000000000000000001',
       problemDescriptionUrl: '/scratch_problem_statement/1001?tid=64f000000000000000000001',
     });
+  });
+
+  it('problem/get exposes Scratch editor through the online programming entry', async () => {
+    const { ScratchModel } = await import('../src/model');
+    const { applyHandlers } = await import('../src/http');
+
+    const events: Record<string, (...args: any[]) => Promise<void>> = {};
+    const ctx = {
+      Route: vi.fn(),
+      on: vi.fn((name: string, callback: (...args: any[]) => Promise<void>) => {
+        events[name] = callback;
+      }),
+    };
+
+    applyHandlers(ctx, DEFAULT_PLUGIN_CONFIG);
+    await ScratchModel.setProblemConfig('system', 1001, DEFAULT_PLUGIN_CONFIG, {
+      enabled: true,
+      submitMode: 'editor',
+      updatedBy: 11,
+    });
+
+    const pdoc: Record<string, any> = {
+      domainId: 'system',
+      docId: 1001,
+      pid: 'P100',
+      title: 'Scratch title',
+      content: [
+        'Statement.',
+        '',
+        '<!-- hydro-scratch-actions -->',
+        '',
+        '---',
+        '',
+        '**Scratch 在线答题**',
+        '',
+        '[进入 Scratch 答题页面](/d/system/scratch/problem/1001/editor)',
+      ].join('\n'),
+    };
+    const handler = {
+      request: { query: { tid: '64f000000000000000000001' } },
+      args: { domainId: 'system' },
+      user: {
+        _id: 22,
+        own: () => false,
+        hasPerm: () => false,
+      },
+      url(name: string, params: Record<string, unknown> = {}) {
+        const suffix = params.pid ?? params.rid;
+        return suffix === undefined ? `/${name}` : `/${name}/${suffix}`;
+      },
+    };
+
+    await events['problem/get'](pdoc, handler as any);
+
+    expect(pdoc.scratchEditorUrl).toBe('/scratch_editor/1001?tid=64f000000000000000000001');
+    expect(pdoc.scratchSubmissionsUrl).toBe('/scratch_problem_submissions/1001');
+    expect(pdoc.content).toContain('**进入在线编程模式**');
+    expect(pdoc.content).toContain('[打开 Scratch 答题页面](/scratch_editor/1001?tid=64f000000000000000000001)');
+    expect(pdoc.content).not.toContain('**Scratch 在线答题**');
+    expect(pdoc.content.match(/hydro-scratch-actions/g)).toHaveLength(1);
   });
 
   it('ScratchProblemStatementHandler.get returns rendered statement html with rewritten problem files', async () => {
@@ -786,6 +1050,103 @@ describe('Scratch problem config upsert', () => {
         userId: 22,
         scored: true,
         score: 100,
+      }],
+    });
+  });
+
+  it('ScratchReviewQueueHandler.get lists pending submissions across problems and filters by problem', async () => {
+    const { ScratchModel } = await import('../src/model');
+    const { ScratchReviewQueueHandler } = await import('../src/http');
+
+    const now = new Date();
+    const validation = {
+      projectJsonSize: 1,
+      unpackedSize: 1,
+      assetCount: 1,
+      targets: 1,
+      spriteCount: 1,
+      hasStage: true,
+      warnings: [],
+    };
+    await ScratchModel.addSubmission({
+      domainId: 'system',
+      rid: 'rid-pending-1001',
+      problemId: 1001,
+      userId: 21,
+      projectPath: 'submission/21/pending',
+      originalName: 'pending.sb3',
+      projectSize: 10,
+      source: 'editor',
+      validation,
+      maxScore: 100,
+      status: 0,
+      scored: false,
+      previewAvailable: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ScratchModel.addSubmission({
+      domainId: 'system',
+      rid: 'rid-scored-1002',
+      problemId: 1002,
+      userId: 22,
+      projectPath: 'submission/22/scored',
+      originalName: 'scored.sb3',
+      projectSize: 10,
+      source: 'editor',
+      validation,
+      score: 100,
+      maxScore: 100,
+      status: 1,
+      scored: true,
+      previewAvailable: true,
+      createdAt: new Date(now.getTime() - 1000),
+      updatedAt: now,
+    });
+    hydroState.problemGet.mockImplementation(async (_domainId: string, pid: number) => ({
+      domainId: 'system',
+      docId: pid,
+      pid: `P${pid}`,
+      title: pid === 1001 ? 'Pending problem' : 'Scored problem',
+      owner: 11,
+    }));
+
+    const handler = new ScratchReviewQueueHandler();
+    handler.pluginConfig = DEFAULT_PLUGIN_CONFIG;
+    handler.args = { domainId: 'system' };
+    handler.request = { query: {} };
+    handler.user = {
+      _id: 11,
+      own: () => false,
+      hasPerm: () => true,
+    };
+
+    await expect(handler.get()).resolves.toBeUndefined();
+
+    expect(handler.response).toMatchObject({
+      template: 'scratch_submissions.html',
+      body: {
+        isGlobalQueue: true,
+        totalSubmissions: 2,
+        pendingCount: 1,
+        statusFilter: 'waiting',
+        submissions: [{
+          rid: 'rid-pending-1001',
+          problemId: 1001,
+          problemLabel: 'P1001 Pending problem',
+        }],
+      },
+    });
+
+    handler.request = { query: { status: 'all', problem: 'P1002' } };
+    await expect(handler.get()).resolves.toBeUndefined();
+
+    expect(handler.response.body).toMatchObject({
+      statusFilter: 'all',
+      problemFilter: 'P1002',
+      submissions: [{
+        rid: 'rid-scored-1002',
+        problemId: 1002,
       }],
     });
   });

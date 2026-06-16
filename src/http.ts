@@ -15,7 +15,7 @@ import {
   post,
 } from 'hydrooj';
 import { ScratchAssetProxyHandler, buildScratchEditorUrl } from './assets';
-import { pluginEnabledForDomain } from './config';
+import { defaultProblemConfig, pluginEnabledForDomain } from './config';
 import {
   ScratchDraftLoadHandler,
   ScratchDraftProjectHandler,
@@ -31,13 +31,25 @@ import {
 } from './package';
 import { limitsFromMB, validateScratchProject } from './sb3';
 import {
-  judgeConfigHasChecks,
+  judgeConfigHasAlgorithmCases,
+  judgeConfigHasTaskChecks,
+  judgeScratchAlgorithmFile,
   judgeScratchFile,
   normalizeJudgeConfig,
   prepareJudgeConfigForMode,
   stringifyJudgeConfig,
 } from './static-judge';
-import type { PluginConfig, ScratchProblemConfig, ScratchSubmitSource, ScratchSubmissionMeta } from './types';
+import type {
+  PluginConfig,
+  ScratchAlgorithmCase,
+  ScratchAlgorithmCompareMode,
+  ScratchAlgorithmConfig,
+  ScratchAlgorithmValue,
+  ScratchProblemConfig,
+  ScratchProblemKind,
+  ScratchSubmitSource,
+  ScratchSubmissionMeta,
+} from './types';
 
 const SCRATCH_LANG = 'scratch3';
 const STATUS_WAITING = STATUS?.STATUS_WAITING ?? 0;
@@ -53,6 +65,10 @@ function parseBoolean(value: unknown, fallback = false) {
   if (value === undefined || value === null || value === '') return fallback;
   if (typeof value === 'boolean') return value;
   return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+}
+
+function parseProblemKind(value: unknown): ScratchProblemKind {
+  return value === 'algorithm' ? 'algorithm' : 'task';
 }
 
 function parseStringArray(value: unknown) {
@@ -74,7 +90,14 @@ function scoreToStatus(score: number, maxScore: number) {
 
 function autoJudgeEnabled(config: ScratchProblemConfig) {
   if (config.judgeMode === 'manual') return false;
-  return judgeConfigHasChecks(prepareJudgeConfigForMode(config.judgeConfig, config.maxScore, config.judgeMode));
+  const judgeConfig = prepareJudgeConfigForMode(config.judgeConfig, config.maxScore, config.judgeMode);
+  return isAlgorithmProblem(config)
+    ? judgeConfigHasAlgorithmCases(judgeConfig)
+    : judgeConfigHasTaskChecks(judgeConfig);
+}
+
+function isAlgorithmProblem(config: ScratchProblemConfig) {
+  return config.problemKind === 'algorithm';
 }
 
 function autoJudgeSummaryText(result: NonNullable<ScratchSubmissionMeta['autoJudgeResult']>) {
@@ -324,7 +347,43 @@ function rewriteScratchProblemActionUrls(pdoc: any, handler: Handler, content: s
     .replace(htmlEditorHref, (_raw, quote) => `href=${quote}${editorUrl}${quote}`);
 }
 
+function buildScratchProblemEntry(pdoc: any, handler: Handler) {
+  const tid = getQueryValue(handler, 'tid') as string | undefined;
+  return {
+    editorUrl: buildHandlerUrl(handler, 'scratch_editor', { pid: pdoc.docId }, { tid }),
+    submissionsUrl: buildHandlerUrl(handler, 'scratch_problem_submissions', { pid: pdoc.docId }),
+    editUrl: buildHandlerUrl(handler, 'scratch_problem_edit', { pid: pdoc.docId }),
+  };
+}
+
+function exposeScratchProblemEntry(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
+  if (!config.enabled || !['editor', 'both'].includes(config.submitMode)) return;
+  const entry = buildScratchProblemEntry(pdoc, handler);
+  pdoc.scratchEditorUrl = entry.editorUrl;
+  pdoc.scratchSubmissionsUrl = entry.submissionsUrl;
+  pdoc.scratchProblemEditUrl = entry.editUrl;
+  pdoc.scratchSubmitMode = config.submitMode;
+}
+
+function buildScratchProblemActions(pdoc: any, handler: Handler) {
+  const { editorUrl, submissionsUrl, editUrl } = buildScratchProblemEntry(pdoc, handler);
+  const canManage = userCanManageProblem(handler.user, pdoc);
+  const managerLinks = canManage
+    ? `\n\n教师入口：[查看提交 / 手动评分](${submissionsUrl}) | [编辑 Scratch 题目](${editUrl})`
+    : '';
+  return `${SCRATCH_ACTIONS_MARKER}
+
+---
+
+**进入在线编程模式**
+
+[打开 Scratch 答题页面](${editorUrl}) | [查看我的提交](${submissionsUrl})
+${managerLinks}`;
+}
+
 function appendScratchProblemActions(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
+  appendScratchProblemActionsSafe(pdoc, handler, config);
+  return;
   if (!config.enabled || typeof pdoc.content !== 'string') return;
   pdoc.content = rewriteScratchProblemActionUrls(pdoc, handler, pdoc.content);
   if (pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
@@ -350,6 +409,13 @@ ${managerLinks}`;
 
 function appendScratchProblemActionsSafe(pdoc: any, handler: Handler, config: ScratchProblemConfig) {
   if (!config.enabled || typeof pdoc.content !== 'string') return;
+  exposeScratchProblemEntry(pdoc, handler, config);
+  const rewrittenContent = rewriteScratchProblemActionUrls(pdoc, handler, pdoc.content);
+  const baseContent = stripScratchActions(rewrittenContent);
+  pdoc.content = `${baseContent}
+
+${buildScratchProblemActions(pdoc, handler)}`;
+  return;
   pdoc.content = rewriteScratchProblemActionUrls(pdoc, handler, pdoc.content);
   if (pdoc.content.includes(SCRATCH_ACTIONS_MARKER)) return;
   const tid = getQueryValue(handler, 'tid') as string | undefined;
@@ -828,6 +894,136 @@ function downloadFilename(value: string) {
   return value.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '-').toLowerCase();
 }
 
+interface AlgorithmQuickForm {
+  target: string;
+  inputName: string;
+  outputName: string;
+  compareMode: ScratchAlgorithmCompareMode;
+  waitMs: number;
+  timeoutMs: number;
+  casesText: string;
+}
+
+function algorithmValueToQuickText(value: ScratchAlgorithmValue | undefined) {
+  if (Array.isArray(value)) return JSON.stringify(value);
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n/g, '\\n');
+}
+
+function unescapeQuickText(value: string) {
+  return value
+    .replace(/\\\\/g, '\u0000')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\u0000/g, '\\');
+}
+
+function quickValueFromText(value: string): ScratchAlgorithmValue {
+  const text = unescapeQuickText(value.trim());
+  if (!text) return '';
+  if (text.startsWith('[') && text.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed) && parsed.every((item) => (
+        typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean'
+      ))) return parsed;
+    } catch { /* keep plain text */ }
+  }
+  return text;
+}
+
+function algorithmCasesToQuickText(cases: ScratchAlgorithmCase[] | undefined) {
+  return (cases || []).map((item, index) => {
+    const parts = [
+      algorithmValueToQuickText(item.input),
+      algorithmValueToQuickText(item.expectedOutput),
+      String(Number.isFinite(item.score) ? item.score : ''),
+      item.name || `测试点 ${index + 1}`,
+    ];
+    if (item.hint) parts.push(item.hint);
+    const line = parts.join(' => ');
+    return item.hidden ? `* ${line}` : line;
+  }).join('\n');
+}
+
+function algorithmQuickForm(config: ScratchProblemConfig): AlgorithmQuickForm {
+  const algorithm = config.judgeConfig.algorithm || {};
+  return {
+    target: algorithm.target || 'Stage',
+    inputName: algorithm.inputVariable || algorithm.inputList || 'input',
+    outputName: algorithm.outputVariable || algorithm.outputList || 'output',
+    compareMode: algorithm.compareMode || 'trim',
+    waitMs: Number(algorithm.waitMs ?? 1000),
+    timeoutMs: Number(algorithm.timeoutMs ?? 6000),
+    casesText: algorithmCasesToQuickText(algorithm.cases),
+  };
+}
+
+function parseAlgorithmQuickCases(text: string) {
+  const cases: ScratchAlgorithmCase[] = [];
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  lines.forEach((rawLine, rawIndex) => {
+    let line = rawLine.trim();
+    if (!line || line.startsWith('#') || line.startsWith('//')) return;
+    let hidden = false;
+    if (/^(?:\*|hidden[:：]?|hide[:：]?|隐藏[:：]?)/i.test(line)) {
+      hidden = true;
+      line = line.replace(/^(?:\*|hidden[:：]?|hide[:：]?|隐藏[:：]?)/i, '').trim();
+    }
+    const parts = line.split(/\s*=>\s*/);
+    if (parts.length < 2) {
+      throw new ValidationError(`算法测试点第 ${rawIndex + 1} 行格式错误，请使用：输入 => 期望输出 => 分值 => 名称`);
+    }
+    const scoreText = (parts[2] || '').trim();
+    const score = scoreText ? Number(scoreText) : undefined;
+    if (scoreText && (!Number.isFinite(score) || Number(score) < 0)) {
+      throw new ValidationError(`算法测试点第 ${rawIndex + 1} 行分值必须是非负数字`);
+    }
+    cases.push({
+      name: (parts[3] || '').trim() || `${hidden ? '隐藏测试' : '测试点'} ${cases.length + 1}`,
+      input: quickValueFromText(parts[0]),
+      expectedOutput: quickValueFromText(parts[1]),
+      score,
+      hidden,
+      hint: (parts[4] || '').trim() || undefined,
+    });
+  });
+  return cases;
+}
+
+function buildAlgorithmQuickConfig(
+  body: Record<string, any>,
+  current: ScratchProblemConfig,
+): ScratchAlgorithmConfig | undefined {
+  const casesText = body.algorithmCases ?? body.algorithm_cases;
+  if (casesText === undefined) return undefined;
+  const currentAlgorithm = current.judgeConfig.algorithm || {};
+  const compareMode = String(body.algorithmCompareMode || body.algorithm_compare_mode || currentAlgorithm.compareMode || 'trim');
+  if (!['exact', 'trim', 'tokens', 'number'].includes(compareMode)) {
+    throw new ValidationError('算法输出比较方式无效');
+  }
+  const waitMs = Number(body.algorithmWaitMs || body.algorithm_wait_ms || currentAlgorithm.waitMs || 1000);
+  const timeoutMs = Number(body.algorithmTimeoutMs || body.algorithm_timeout_ms || currentAlgorithm.timeoutMs || 6000);
+  if (!Number.isFinite(waitMs) || waitMs < 0) throw new ValidationError('算法等待时间必须是非负数字');
+  if (!Number.isFinite(timeoutMs) || timeoutMs < 1) throw new ValidationError('算法超时时间必须大于 0');
+  return {
+    ...currentAlgorithm,
+    target: String(body.algorithmTarget || body.algorithm_target || currentAlgorithm.target || 'Stage').trim() || undefined,
+    inputVariable: String(body.algorithmInputName || body.algorithm_input_name || currentAlgorithm.inputVariable || currentAlgorithm.inputList || 'input').trim() || 'input',
+    inputList: undefined,
+    outputVariable: String(body.algorithmOutputName || body.algorithm_output_name || currentAlgorithm.outputVariable || currentAlgorithm.outputList || 'output').trim() || 'output',
+    outputList: undefined,
+    compareMode: compareMode as ScratchAlgorithmCompareMode,
+    waitMs,
+    timeoutMs,
+    cases: parseAlgorithmQuickCases(String(casesText || '')),
+  };
+}
+
 function buildScratchConfigPatch(
   current: ScratchProblemConfig,
   body: Record<string, any>,
@@ -848,8 +1044,17 @@ function buildScratchConfigPatch(
       throw new ValidationError(`judgeConfig: ${message}`);
     }
   }
+  const algorithmConfig = buildAlgorithmQuickConfig(body, current);
+  if (algorithmConfig) {
+    judgeConfig = normalizeJudgeConfig({
+      ...judgeConfig,
+      totalScore: maxScore,
+      algorithm: algorithmConfig,
+    }, maxScore);
+  }
   return {
     enabled: parseBoolean(body.enabled, isFormPost ? false : current.enabled),
+    problemKind: parseProblemKind(body.problemKind || body.problem_kind || current.problemKind),
     submitMode: body.submitMode || body.submit_mode || current.submitMode,
     judgeMode: body.judgeMode || body.judge_mode || current.judgeMode,
     allowDownloadTemplate: parseBoolean(body.allowDownloadTemplate, isFormPost ? false : current.allowDownloadTemplate),
@@ -862,6 +1067,46 @@ function buildScratchConfigPatch(
     judgeConfig,
     maxScore,
     updatedBy: userId,
+  };
+}
+
+function scratchCreateDefaultConfig(
+  domainId: string,
+  problemId: number,
+  pluginConfig: PluginConfig,
+  problemKind: ScratchProblemKind = 'task',
+): ScratchProblemConfig {
+  const normalizedProblemKind = parseProblemKind(problemKind);
+  return {
+    ...defaultProblemConfig(domainId, problemId, pluginConfig),
+    enabled: true,
+    problemKind: normalizedProblemKind,
+    submitMode: 'editor',
+    judgeMode: normalizedProblemKind === 'algorithm' ? 'dynamic' : 'manual',
+    allowDownloadTemplate: true,
+    maxScore: pluginConfig.maxScore,
+  };
+}
+
+function normalizeCreateConfigBody(
+  body: Record<string, any>,
+  current: ScratchProblemConfig,
+): Record<string, any> {
+  return {
+    enabled: 'on',
+    problemKind: current.problemKind,
+    submitMode: current.submitMode,
+    judgeMode: current.judgeMode,
+    allowDownloadTemplate: current.allowDownloadTemplate ? 'on' : '',
+    maxScore: current.maxScore,
+    maxProjectSizeMB: current.maxProjectSizeMB,
+    maxUnpackedSizeMB: current.maxUnpackedSizeMB,
+    maxAssetSizeMB: current.maxAssetSizeMB,
+    maxAssetCount: current.maxAssetCount,
+    maxProjectJsonSizeMB: current.maxProjectJsonSizeMB,
+    disabledScratchExtensions: current.disabledScratchExtensions.join(', '),
+    judgeConfig: stringifyJudgeConfig(current.judgeConfig),
+    ...body,
   };
 }
 
@@ -923,6 +1168,7 @@ export class ScratchProblemConfigHandler extends ScratchProblemHandler {
     this.response.body = {
       pdoc: this.pdoc,
       config: this.scratchConfig,
+      algorithmForm: algorithmQuickForm(this.scratchConfig),
       judgeConfigText: stringifyJudgeConfig(this.scratchConfig.judgeConfig),
       editUrl: this.url('scratch_problem_edit', { pid: this.pdoc.docId }),
       exportUrl: this.url('scratch_problem_export', { pid: this.pdoc.docId }),
@@ -960,9 +1206,13 @@ abstract class ScratchDomainHandler extends Handler {
 
 export class ScratchProblemCreateHandler extends ScratchDomainHandler {
   async get() {
+    const config = scratchCreateDefaultConfig('system', 0, this.pluginConfig);
     this.response.template = 'scratch_problem_create.html';
     this.response.body = {
-      defaultContent: 'Scratch project assignment.\n\nUpload a .sb3 file to submit your work.',
+      config,
+      algorithmForm: algorithmQuickForm(config),
+      judgeConfigText: stringifyJudgeConfig(config.judgeConfig),
+      defaultContent: '请在这里写清楚学生需要完成的 Scratch 任务、保留的角色/变量、提交要求和评分说明。',
       defaultMaxScore: this.pluginConfig.maxScore,
       importUrl: this.url('scratch_problem_import'),
       guideUrl: this.url('scratch_problem_guide'),
@@ -973,26 +1223,37 @@ export class ScratchProblemCreateHandler extends ScratchDomainHandler {
   @post('content', Types.Content, true)
   @post('pid', Types.ProblemId, true)
   @post('hidden', Types.Boolean, true)
-  async post(domainId: string, title: string, content = '', pid: string | number = '', hidden = false) {
+  @post('problemKind', Types.String, true)
+  async post(
+    domainId: string,
+    title: string,
+    content = '',
+    pid: string | number = '',
+    hidden = false,
+    problemKind: ScratchProblemKind = 'task',
+  ) {
     if (typeof pid !== 'string') pid = `P${pid}`;
+    const rawBody = this.args || {};
+    const normalizedProblemKind = parseProblemKind(rawBody.problemKind || rawBody.problem_kind || problemKind);
+    const body = normalizeCreateConfigBody(
+      rawBody,
+      scratchCreateDefaultConfig(domainId, 0, this.pluginConfig, normalizedProblemKind),
+    );
     const docId = await HydroApi.problem.add(
       domainId,
       pid,
       title,
-      content || 'Scratch project assignment.',
+      content || '请在这里写清楚学生需要完成的 Scratch 任务、保留的角色/变量、提交要求和评分说明。',
       this.user._id,
       ['Scratch'],
       { hidden },
     );
+    const baseConfig = scratchCreateDefaultConfig(domainId, docId, this.pluginConfig, normalizedProblemKind);
     await ScratchModel.setProblemConfig(domainId, docId, this.pluginConfig, {
-      enabled: true,
-      submitMode: 'editor',
-      judgeMode: 'manual',
-      maxScore: this.pluginConfig.maxScore,
-      updatedBy: this.user._id,
+      ...buildScratchConfigPatch(baseConfig, body, this.user._id, true),
     });
     this.response.body = { pid: pid || docId };
-    this.response.redirect = this.url('problem_detail', { pid: pid || docId });
+    this.response.redirect = this.url('scratch_problem_edit', { pid: pid || docId });
   }
 }
 
@@ -1036,6 +1297,7 @@ export class ScratchProblemImportHandler extends ScratchDomainHandler {
 
     let config = await ScratchModel.setProblemConfig(domainId, docId, this.pluginConfig, {
       enabled: scratch.enabled ?? true,
+      problemKind: scratch.problemKind || 'task',
       submitMode: scratch.submitMode || 'both',
       judgeMode: scratch.judgeMode || 'hybrid',
       allowDownloadTemplate: scratch.allowDownloadTemplate ?? true,
@@ -1090,6 +1352,7 @@ export class ScratchProblemEditHandler extends ScratchProblemHandler {
     this.response.body = {
       pdoc: this.pdoc,
       config: this.scratchConfig,
+      algorithmForm: algorithmQuickForm(this.scratchConfig),
       judgeConfigText: stringifyJudgeConfig(this.scratchConfig.judgeConfig),
       templateUploadUrl: this.url('scratch_problem_template', { pid: this.pdoc.docId }),
       templateDownloadUrl: this.scratchConfig.templatePath
@@ -1195,6 +1458,7 @@ export class ScratchProblemExportHandler extends ScratchProblemHandler {
       statement: stripScratchActions(String(this.pdoc.content || '')),
       scratch: {
         enabled: this.scratchConfig.enabled,
+        problemKind: this.scratchConfig.problemKind,
         submitMode: this.scratchConfig.submitMode,
         judgeMode: this.scratchConfig.judgeMode,
         maxScore: this.scratchConfig.maxScore,
@@ -1257,7 +1521,9 @@ export class ScratchSubmitHandler extends ScratchProblemHandler {
           this.scratchConfig.maxScore,
           this.scratchConfig.judgeMode,
         );
-        autoJudgeResult = await judgeScratchFile(file.filepath, judgeConfig);
+        autoJudgeResult = isAlgorithmProblem(this.scratchConfig)
+          ? await judgeScratchAlgorithmFile(file.filepath, judgeConfig)
+          : await judgeScratchFile(file.filepath, judgeConfig);
       } catch (error) {
         autoJudgeError = error instanceof Error ? error.message : String(error);
       }
@@ -1755,8 +2021,9 @@ export function applyHandlers(ctx: any, pluginConfig: PluginConfig) {
     if (handler.request.json) return;
     if (getQueryValue(handler, 'scratchActions') === '0') return;
     if (!pdoc?.docId) return undefined;
-    if (!pluginEnabledForDomain(pluginConfig, pdoc.domainId || handler.args?.domainId)) return;
-    const config = await ScratchModel.getProblemConfig(pdoc.domainId, pdoc.docId, pluginConfig);
+    const domainId = pdoc.domainId || handler.args?.domainId;
+    if (!pluginEnabledForDomain(pluginConfig, domainId)) return;
+    const config = await ScratchModel.getProblemConfig(domainId, pdoc.docId, pluginConfig);
     if (!['editor', 'both'].includes(config.submitMode)) return;
     appendScratchProblemActionsSafe(pdoc, handler, config);
   });

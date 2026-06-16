@@ -1,7 +1,13 @@
 import { open, type Entry, type ZipFile } from 'yauzl';
 import yazl from 'yazl';
 import YAML from 'yaml';
-import type { PluginConfig, ScratchJudgeConfig, ScratchJudgeMode, ScratchSubmitMode } from './types';
+import type {
+  PluginConfig,
+  ScratchJudgeConfig,
+  ScratchJudgeMode,
+  ScratchProblemKind,
+  ScratchSubmitMode,
+} from './types';
 import { normalizeJudgeConfig } from './static-judge';
 
 export interface ScratchProblemPackageManifest {
@@ -13,6 +19,7 @@ export interface ScratchProblemPackageManifest {
   tags?: string[];
   scratch?: {
     enabled?: boolean;
+    problemKind?: ScratchProblemKind;
     submitMode?: ScratchSubmitMode;
     judgeMode?: ScratchJudgeMode;
     maxScore?: number;
@@ -47,6 +54,7 @@ export interface ScratchProblemPackageSource {
   statement: string;
   scratch: {
     enabled: boolean;
+    problemKind: ScratchProblemKind;
     submitMode: ScratchSubmitMode;
     judgeMode: ScratchJudgeMode;
     maxScore: number;
@@ -131,6 +139,7 @@ function buildManifest(source: ScratchProblemPackageSource): ScratchProblemPacka
     tags: uniqueTags([...(source.tags || []), 'Scratch']),
     scratch: {
       enabled: source.scratch.enabled,
+      problemKind: source.scratch.problemKind,
       submitMode: source.scratch.submitMode,
       judgeMode: source.scratch.judgeMode,
       maxScore: source.scratch.maxScore,
@@ -164,6 +173,7 @@ function normalizeManifest(input: unknown): ScratchProblemPackageManifest {
     tags: parseStringArray(manifest.tags),
     scratch: {
       enabled: scratch.enabled === undefined ? true : Boolean(scratch.enabled),
+      problemKind: parseProblemKind(scratch.problemKind),
       submitMode: parseSubmitMode(scratch.submitMode),
       judgeMode: parseJudgeMode(scratch.judgeMode),
       maxScore: positiveNumber(scratch.maxScore, 100),
@@ -298,6 +308,10 @@ function isKnownEntry(name: string) {
 
 function parseSubmitMode(value: unknown): ScratchSubmitMode {
   return value === 'upload' || value === 'editor' || value === 'both' ? value : 'both';
+}
+
+function parseProblemKind(value: unknown): ScratchProblemKind {
+  return value === 'algorithm' ? 'algorithm' : 'task';
 }
 
 function parseJudgeMode(value: unknown): ScratchJudgeMode {

@@ -1,29 +1,26 @@
-# hydro_scratch
+# Hydro Scratch 自动测评插件
 
-hydro的手动测评及出题插件。
+当前版本：`0.6.13`
 
-## Features
+这是一个面向 HydroOJ 的 Scratch 出题、答题、暂存、提交、批改和自动测评插件。插件会创建 Hydro 原生题目，同时为题目增加 Scratch 在线编辑器、`.sb3` 上传、草稿恢复、手动评分、静态/动态/混合自动测评、算法题输入输出测试和题目包导入导出能力。
 
-- Create a normal Hydro problem tagged as `Scratch`, so it appears in the standard problem set.
-- Open Scratch problems directly in an embedded online Scratch editor.
-- Load a teacher-uploaded `.sb3` template or the student's latest draft.
-- Save drafts from the editor.
-- Submit `.sb3` projects from the editor.
-- Store submissions as Hydro records with a downloadable code attachment.
-- Preview, download, list, manually score, and auto-judge Scratch submissions.
-- Review all pending manual Scratch submissions in a domain from one queue, with optional problem filtering.
-- Configure static checks, structure checks, and dynamic checks through `judgeConfig`.
-- Limit required blocks to a target sprite and script order with `structureChecks`.
-- Run Scratch VM checks for variables and sprite positions with `dynamicChecks`.
-- Save automatic judge details on submissions and show test point results on preview/scoring pages.
-- Import and export Hydro-native Scratch problem packages as `.zip` files.
-- Package a problem statement, auto-judge config, Scratch settings, and optional `.sb3` template together for reuse.
-- Keep Hydro model calls behind `src/hydro-api.ts`, making future Hydro API changes easier to patch.
-- Bundle a Scratch GUI build plus Scratch library assets for offline/self-hosted deployments.
-- Serve Scratch library assets through `/scratch-assets`, with remote fallback for missing assets.
-- Let system administrators limit the plugin to selected Hydro domains without changing existing Scratch problem data.
+## 主要功能
 
-## Install
+- 在 Hydro 题库中创建普通题目，并自动打上 `Scratch` 标签。
+- 支持管理员限制插件只在指定域生效，例如只在 `/d/scratch/` 中显示创建入口和答题入口。
+- 学生可以在网页内打开内嵌 Scratch 编辑器完成作品、保存草稿、恢复草稿并提交测评。
+- 老师可以上传模板作品、查看提交、预览作品、下载 `.sb3`、手动评分或覆盖自动评分结果。
+- 支持域级待批改队列 `/scratch/review`，老师不需要先进入具体题目即可查看待处理提交。
+- 支持任务题和算法题两类题目。
+- 任务题支持静态检查、积木结构顺序检查、动态运行检查和混合测评。
+- 算法题支持批量输入输出测试，默认向 Scratch 变量 `input` 写入输入，运行绿旗后读取 `output` 判分。
+- 算法题支持 `exact`、`trim`、`tokens`、`number` 四种输出比较方式，支持隐藏测试点、列表输入和列表输出。
+- 创建页、编辑页和配置页均可直接调整手动评分、自动评分、混合评分、算法测试点和作品限制，减少反复跳转。
+- 自动测评结果会写回 Hydro 记录，并同步普通练习、比赛、作业等上下文成绩。
+- 支持 Hydro 原生风格题目包导入导出，包含题面、Scratch 配置、测评配置和可选模板 `.sb3`。
+- 自带 Scratch GUI 静态资源和 Scratch 素材代理，适合离线或内网部署。
+
+## 安装开发版
 
 ```bash
 npm install
@@ -31,11 +28,37 @@ npm run build
 hydrooj addon add E:/Users/moran/Documents/hydro_chajian
 ```
 
-Then restart Hydro.
+安装后重启 Hydro。
 
-## Domain Scope
+## 生产部署
 
-System administrators can limit where the plugin is active through the plugin configuration:
+完整安装包：
+
+```text
+release/hydro-plugin-scratch-0.6.13.tgz
+```
+
+已有插件时优先使用轻量覆盖更新包：
+
+```text
+release/hydro-plugin-scratch-update-0.6.13.tgz
+release/hydro-plugin-scratch-update-0.6.13.zip
+```
+
+Linux 覆盖更新示例：
+
+```bash
+tar -xzf /tmp/hydro-plugin-scratch-update-0.6.13.tgz -C ~/.hydro/addons/hydro-plugin-scratch --strip-components=1
+cd ~/.hydro/addons/hydro-plugin-scratch
+yarn --production
+pm2 restart hydro
+```
+
+如果不是 `pm2` 部署，请使用你的实际 Hydro 重启方式。更完整的部署说明见 [DEPLOY.md](DEPLOY.md)。
+
+## 域作用范围
+
+系统管理员可以在插件配置中限制插件生效的 Hydro 域：
 
 ```yaml
 enabledDomains:
@@ -43,26 +66,108 @@ enabledDomains:
   - classroom
 ```
 
-- Use the domain ID from the URL, such as `scratch` in `/d/scratch/`, rather than the displayed domain name.
-- An empty or missing `enabledDomains` list keeps the previous behavior and enables the plugin in every domain.
-- Domain IDs are trimmed and compared case-insensitively.
-- In a disabled domain, the `Scratch Problem` creation entry, problem-page Scratch actions, editor, draft, submit, preview, scoring, import, export, and guide routes are unavailable.
-- Existing Scratch problems, submissions, drafts, and stored files are not deleted when a domain is removed from the list.
-- `/scratch-assets` remains globally available because it is shared static editor infrastructure.
+说明：
 
-Administrator guide: `docs/scratch-domain-scope-0.6.8.md`
+- 域 ID 来自 URL，例如 `http://moran007.top/d/scratch/` 对应 `scratch`。
+- `enabledDomains` 为空时保持旧行为，即所有域都启用插件。
+- 未启用的域会隐藏 Scratch 创建入口和题面操作入口，直接访问插件路由会返回未找到。
+- 从启用列表移除某个域不会删除已有 Scratch 题目、提交、草稿或存储文件。
+- `/scratch-assets` 是编辑器共享静态资源，仍保持全局可访问。
 
-Manual review guide: `docs/scratch-manual-review-0.6.9.md`
+域配置说明见 [docs/scratch-domain-scope-0.6.8.md](docs/scratch-domain-scope-0.6.8.md)。
 
-## Package
+## 创建题目
 
-```bash
-npm run pack:plugin
+进入启用域后，使用 Scratch 题目创建入口。`0.6.13` 起创建页已经是一站式配置页，可以在创建时直接设置：
+
+- 题目标题、题号、题面、隐藏状态。
+- 题目类型：任务题或算法题。
+- 提交方式：仅上传、仅在线编辑器、上传和在线编辑器都允许。
+- 测评方式：手动评分、静态检查、动态运行、混合测评。
+- 满分和是否允许学生下载模板。
+- 算法题输入输出测试点快捷录入。
+- 高级自动测评 JSON。
+- `.sb3` 文件大小、解压大小、素材数量和禁用扩展等限制。
+
+创建成功后会进入编辑页，方便继续上传模板作品或微调测试点。
+
+## 任务题测评
+
+任务题适合 Scratch 编程闯关、角色移动、变量结果、积木顺序等场景。
+
+常用配置：
+
+- `staticChecks`：检查角色、变量、积木、广播、舞台等是否存在。
+- `structureChecks`：检查指定角色脚本中积木是否按要求顺序出现。
+- `dynamicChecks`：运行 Scratch VM 后检查角色位置、变量值、列表值等结果。
+- `hybrid`：同时执行静态、结构和动态检查，按任务点累计得分。
+
+老师可以下载配置模板和说明：
+
+- [docs/teacher-judge-config-guide.md](docs/teacher-judge-config-guide.md)
+- [docs/templates/judge-config-static-structure-only.json](docs/templates/judge-config-static-structure-only.json)
+- [docs/templates/judge-config-hybrid-position.json](docs/templates/judge-config-hybrid-position.json)
+- [docs/templates/judge-config-keypress-variable.json](docs/templates/judge-config-keypress-variable.json)
+
+## 算法题测评
+
+算法题适合“输入一组数据，输出答案”的 Scratch 题目。默认规则：
+
+- 判题器向变量 `input` 写入当前测试点输入。
+- 运行绿旗。
+- 等待指定毫秒数。
+- 读取变量 `output`。
+- 按配置的比较方式判定是否通过并累计分数。
+
+快捷录入格式：
+
+```text
+输入 => 期望输出 => 分值 => 名称
 ```
 
-The package is written to `release/`.
+示例：
 
-## Routes
+```text
+1 => 1 => 5 => 单值输入
+1 2 => 3 => 5 => 单行多个输入
+2\n3 => 5 => 10 => 多次输入
+[1,2,3] => 6 => 10 => 列表数字输入
+["a","b"] => a b => 10 => 列表字符串输入
+* 100 200 => 300 => 20 => 隐藏大数据
+```
+
+说明：
+
+- 多行输入写成 `\n`。
+- JSON 数组会作为列表值解析，例如 `[1,2,3]`。
+- 行首加 `*` 表示隐藏测试点，失败时不向学生暴露实际输入输出。
+- `exact` 要求完全一致。
+- `trim` 忽略首尾空白。
+- `tokens` 按空白分词比较。
+- `number` 按数字比较，可配置误差。
+
+算法题模板见 [docs/templates/judge-config-algorithm-io.json](docs/templates/judge-config-algorithm-io.json)。
+
+## 题目包导入导出
+
+插件支持 Hydro 原生风格 Scratch 题目包：
+
+```text
+problem.yaml
+statement.md
+scratch-judge.json
+template.sb3          # 可选
+```
+
+用途：
+
+- 老师可以把配置好的题目导出为 `.scratch-problem.zip`。
+- 其他 Hydro 站点可以通过导入页创建同样的题目。
+- 导入导出会保留题面、标签、隐藏状态、Scratch 配置、自动测评配置和模板作品。
+
+说明见 [docs/hydro-native-problem-package.md](docs/hydro-native-problem-package.md)。
+
+## 常用路由
 
 ```text
 GET  /scratch/problem/create
@@ -86,115 +191,36 @@ GET  /scratch/submission/:rid/score
 POST /scratch/submission/:rid/score
 ```
 
-## Notes
+## 开发与测试
 
-- New Scratch problems default to online-editor submission mode.
-- Visiting `/p/:pid` keeps the normal Hydro problem page and adds a Scratch online editor link to the statement.
-- Teachers can score from `Scratch Problem -> Submissions -> Preview / Score` or directly from `/scratch/submission/:rid/preview`.
-- Teachers can use the direct scoring page `/scratch/submission/:rid/score` when they need a separate manual scoring entry.
-- Teachers can open `/scratch/review` to see pending manual Scratch submissions across the current domain, then filter by problem, contest/homework name, source, or scoring state.
-- New manual-only submissions use Hydro's Waiting status, so they also appear in Hydro's native pending record filter.
-- Students can open `Scratch Problem -> My Submissions` to view previous Scratch projects, downloads, previews, and Hydro record links.
-- Contest/homework entries preserve `tid` when launched from the Hydro problem page, so manual scoring updates the corresponding scoreboard status.
-- Static mode runs configured static and structure checks immediately after submit and writes the score back to Hydro records.
-- Dynamic mode runs configured VM checks such as variable values and sprite positions.
-- Hybrid mode combines static, structure, and dynamic checks while keeping the teacher scoring page available for review or override.
-- Teachers can export a Scratch problem as a Hydro-native package and import it into another Hydro site through `/scratch/problem/import`.
-- The preview page uses the bundled Scratch editor and reads the submitted `.sb3` from the same Hydro origin, avoiding external-player fetch/CORS failures.
-- Submitted projects are saved under Hydro's standard `submission/` storage prefix so record detail pages can download the `.sb3` attachment.
-
-## Hydro-Native Problem Package
-
-The package format is a `.zip` file that can be created by the plugin export page or assembled manually:
-
-```text
-problem.yaml
-statement.md
-scratch-judge.json
-template.sb3          # optional
+```bash
+npm run build
+npm test
+npm run check
 ```
 
-Use `/scratch/problem/import` to create a normal Hydro problem with Scratch settings and auto-judge tests already attached. Use `/scratch/problem/:pid/export` from the Scratch problem settings page to download the same format.
+打包：
 
-Teacher-facing package guide:
-
-- `docs/hydro-native-problem-package.md`
-- `docs/templates/problem-package/problem.yaml`
-- `docs/templates/problem-package/statement.md`
-- `docs/templates/problem-package/scratch-judge.json`
-
-## Auto Judge Config
-
-Set the problem judge mode to `Static`, `Dynamic`, or `Hybrid`, then paste a JSON config in the Scratch settings page. Static mode runs `staticChecks` and `structureChecks`; Dynamic mode runs `dynamicChecks`; Hybrid mode runs all configured checks.
-
-Teacher-facing configuration guide:
-
-- `docs/teacher-judge-config-guide.md`
-- `docs/templates/judge-config-hybrid-position.json`
-- `docs/templates/judge-config-keypress-variable.json`
-- `docs/templates/judge-config-static-structure-only.json`
-
-```json
-{
-  "totalScore": 100,
-  "staticChecks": [
-    {
-      "name": "存在 Player 角色",
-      "type": "sprite_exists",
-      "sprite": "Player",
-      "score": 50
-    },
-    {
-      "name": "点击绿旗",
-      "type": "block_exists",
-      "opcode": "event_whenflagclicked",
-      "score": 50
-    }
-  ]
-}
+```bash
+npm run pack:plugin
 ```
 
-Hybrid example with target script order and final sprite position:
+当前版本本地验证：
 
-```json
-{
-  "schemaVersion": 2,
-  "totalScore": 100,
-  "staticChecks": [
-    {
-      "name": "Player sprite exists",
-      "type": "sprite_exists",
-      "sprite": "Player",
-      "score": 10
-    }
-  ],
-  "structureChecks": [
-    {
-      "name": "Player green flag script has the expected order",
-      "type": "script_sequence",
-      "target": "Player",
-      "hat": "event_whenflagclicked",
-      "sequence": ["event_whenflagclicked", "motion_gotoxy", "motion_movesteps"],
-      "score": 30
-    }
-  ],
-  "dynamicChecks": [
-    {
-      "name": "Player reaches target position",
-      "type": "sprite_position",
-      "target": "Player",
-      "expected": { "x": 100, "y": 0 },
-      "tolerance": 5,
-      "score": 60,
-      "steps": [
-        { "action": "green_flag" },
-        { "action": "wait", "ms": 800 }
-      ]
-    }
-  ],
-  "dynamicOptions": {
-    "timeoutMs": 5000,
-    "positionTolerance": 5
-  }
-}
-```
+- TypeScript 编译通过。
+- Vitest 全量通过：5 个测试文件，34 个测试。
+- 算法题新增覆盖：10 个测试点、多行输入、列表输入、列表输出、输出比较、隐藏失败点、得分累加和总分缩放。
+
+## 升级注意事项
+
+- 动态测评依赖 `scratch-vm` 和 `scratch-render-fonts`，生产服务器覆盖更新后请执行 `yarn --production`。
+- 如果浏览器仍加载旧 Scratch GUI，请清理浏览器缓存或用无痕窗口验证。
+- 比赛场景的分数展示遵循 Hydro 比赛规则：全对显示 AC，非全对是否显示具体分数由比赛类型决定。
+- 不建议把线上账号密码写入仓库；需要线上测试时请在当前工作线程中临时提供。
+
+## 交接文档
+
+如果后续切换 Codex 账号或新线程继续开发，请先阅读：
+
+- [docs/codex-handoff-0.6.13.md](docs/codex-handoff-0.6.13.md)
+

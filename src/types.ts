@@ -1,7 +1,11 @@
 export type ScratchSubmitMode = 'upload' | 'editor' | 'both';
 export type ScratchJudgeMode = 'manual' | 'static' | 'dynamic' | 'hybrid';
 export type ScratchSubmitSource = 'upload' | 'editor';
-export type ScratchJudgeCategory = 'static' | 'structure' | 'dynamic';
+export type ScratchProblemKind = 'task' | 'algorithm';
+export type ScratchJudgeCategory = 'static' | 'structure' | 'dynamic' | 'algorithm';
+export type ScratchAlgorithmCompareMode = 'exact' | 'trim' | 'tokens' | 'number';
+export type ScratchAlgorithmInputSplit = 'none' | 'lines' | 'tokens';
+export type ScratchAlgorithmValue = string | number | boolean | Array<string | number | boolean>;
 
 export interface ScratchCheckBase {
   name: string;
@@ -149,6 +153,31 @@ export interface ScratchDynamicOptions {
   positionTolerance?: number;
 }
 
+export interface ScratchAlgorithmCase {
+  name: string;
+  input: ScratchAlgorithmValue;
+  expectedOutput: ScratchAlgorithmValue;
+  score?: number;
+  hint?: string;
+  hidden?: boolean;
+  compareMode?: ScratchAlgorithmCompareMode;
+}
+
+export interface ScratchAlgorithmConfig {
+  target?: string;
+  inputVariable?: string;
+  inputList?: string;
+  outputVariable?: string;
+  outputList?: string;
+  inputSplit?: ScratchAlgorithmInputSplit;
+  outputJoin?: string;
+  compareMode?: ScratchAlgorithmCompareMode;
+  numericTolerance?: number;
+  waitMs?: number;
+  timeoutMs?: number;
+  cases?: ScratchAlgorithmCase[];
+}
+
 export interface ScratchJudgeConfig {
   schemaVersion?: number;
   problemId?: string | number;
@@ -158,6 +187,7 @@ export interface ScratchJudgeConfig {
   structureChecks?: ScratchStructureCheck[];
   dynamicChecks?: ScratchDynamicCheck[];
   dynamicOptions?: ScratchDynamicOptions;
+  algorithm?: ScratchAlgorithmConfig;
 }
 
 export interface ScratchScriptMeta {
@@ -181,7 +211,8 @@ export interface ScratchProjectMeta {
 export type ScratchJudgeDetailType =
   | ScratchStaticCheck['type']
   | ScratchStructureCheck['type']
-  | ScratchDynamicCheck['type'];
+  | ScratchDynamicCheck['type']
+  | 'algorithm_case';
 
 export interface ScratchJudgeDetail {
   name: string;
@@ -199,7 +230,7 @@ export interface ScratchJudgeDetail {
 }
 
 export interface ScratchJudgeResult {
-  mode: 'static' | 'dynamic' | 'hybrid';
+  mode: 'static' | 'dynamic' | 'hybrid' | 'algorithm';
   totalScore: number;
   maxScore: number;
   passed: boolean;
@@ -225,6 +256,7 @@ export interface ScratchProblemConfig {
   domainId: string;
   problemId: number;
   enabled: boolean;
+  problemKind: ScratchProblemKind;
   submitMode: ScratchSubmitMode;
   judgeMode: ScratchJudgeMode;
   templatePath?: string;

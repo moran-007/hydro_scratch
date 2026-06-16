@@ -7,7 +7,7 @@ import yazl from 'yazl';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ScratchValidationError } from '../src/errors';
 import { validateScratchProject } from '../src/sb3';
-import { judgeScratchFile, judgeScratchStaticFile } from '../src/static-judge';
+import { judgeScratchAlgorithmFile, judgeScratchFile, judgeScratchStaticFile } from '../src/static-judge';
 
 let tempDirs: string[] = [];
 
@@ -426,6 +426,57 @@ describe('validateScratchProject', () => {
         {
           type: 'sprite_position',
           category: 'dynamic',
+          passed: true,
+        },
+      ],
+    });
+  });
+
+  it('scores algorithm cases from Scratch input/output variables', async () => {
+    const filePath = await tempFile('project.sb3');
+    const asset = minimalSvgCostume();
+    await writeZip(filePath, {
+      'project.json': JSON.stringify({
+        targets: [
+          {
+            ...stageTarget(asset.costume),
+            variables: {
+              input: ['input', ''],
+              output: ['output', '42'],
+            },
+          },
+        ],
+        monitors: [],
+        extensions: [],
+        meta: { semver: '3.0.0', vm: '0.2.0', agent: 'test' },
+      }),
+      [asset.fileName]: asset.svg,
+    });
+
+    await expect(judgeScratchAlgorithmFile(filePath, {
+      totalScore: 100,
+      algorithm: {
+        inputVariable: 'input',
+        outputVariable: 'output',
+        waitMs: 10,
+        timeoutMs: 5000,
+        cases: [
+          {
+            name: 'outputs 42',
+            input: '',
+            expectedOutput: '42',
+            score: 100,
+          },
+        ],
+      },
+    })).resolves.toMatchObject({
+      mode: 'algorithm',
+      totalScore: 100,
+      passed: true,
+      details: [
+        {
+          type: 'algorithm_case',
+          category: 'algorithm',
           passed: true,
         },
       ],

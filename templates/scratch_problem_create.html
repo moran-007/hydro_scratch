@@ -1,62 +1,389 @@
 {% extends "layout/basic.html" %}
 {% block content %}
-<div class="row">
-  <div class="medium-8 columns">
+<div class="scratch-create-layout">
+  <div class="scratch-create-main">
     <div class="section">
       <div class="section__header">
-        <h1 class="section__title">{{ _('Create Scratch Problem') }}</h1>
+        <h1 class="section__title">创建 Scratch 题目</h1>
+        <div class="section__tools">
+          <a class="rounded button" href="{{ importUrl }}">导入题目包</a>
+          <a class="rounded button" href="{{ guideUrl }}">下载题目及测试点说明</a>
+        </div>
       </div>
       <div class="section__body">
-        <form method="post">
-          {{ form.form_text({
-              label:'Title',
-              name:'title',
-              autofocus:true,
-              required:true
-            }) }}
-          {{ form.form_text({
-              label:'Problem ID',
-              name:'pid',
-              help_text:'Optional. Leave empty to use Hydro numeric ID.'
-            }) }}
-          {{ form.form_textarea({
-              label:'Statement',
-              name:'content',
-              value:defaultContent,
-              rows:10
-            }) }}
-          {{ form.form_checkbox({
-              label:'Hidden',
-              name:'hidden',
-              value:false
-            }) }}
-          <div class="row">
-            <div class="columns">
-              <input type="submit" class="rounded primary button" value="{{ _('Create') }}">
+        <form method="post" id="scratch-create-form">
+          <input type="hidden" name="enabled" value="on">
+
+          <div class="scratch-form-card">
+            <h2>题目基础信息</h2>
+            <div class="row">
+              <div class="medium-8 columns">
+                {{ form.form_text({
+                    label:'标题',
+                    name:'title',
+                    autofocus:true,
+                    required:true
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'题号',
+                    name:'pid',
+                    help_text:'可选。留空时使用 Hydro 自动生成的数字题号。'
+                  }) }}
+              </div>
             </div>
+            {{ form.form_textarea({
+                label:'题面',
+                name:'content',
+                value:defaultContent,
+                rows:10,
+                help_text:'建议写清楚任务目标、保留角色、变量名称、提交要求和评分说明。'
+              }) }}
+            {{ form.form_checkbox({
+                label:'隐藏题目',
+                name:'hidden',
+                value:false
+              }) }}
+          </div>
+
+          <div class="scratch-form-card">
+            <h2>评分与提交方式</h2>
+            <div class="scratch-mode-tips">
+              <div>
+                <b>任务题</b>
+                <span>适合检查角色、积木顺序、变量和运行结果。</span>
+              </div>
+              <div>
+                <b>算法题</b>
+                <span>适合批量输入输出测试，学生用变量读取输入并写出答案。</span>
+              </div>
+              <div>
+                <b>混合测评</b>
+                <span>先做静态结构检查，再做动态运行检查，适合闯关任务。</span>
+              </div>
+            </div>
+            <div class="row">
+              <div class="medium-4 columns">
+                {{ form.form_select({
+                    label:'题目类型',
+                    name:'problemKind',
+                    options:{task:'任务题：按任务点得分', algorithm:'算法题：批量输入输出测试'},
+                    value:config.problemKind
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_select({
+                    label:'提交方式',
+                    name:'submitMode',
+                    options:{upload:'仅允许上传作品', editor:'仅允许在线编辑器', both:'上传和在线编辑器都允许'},
+                    value:config.submitMode
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_select({
+                    label:'测评方式',
+                    name:'judgeMode',
+                    options:{manual:'手动评分', static:'静态检查', dynamic:'动态运行', hybrid:'混合测评'},
+                    value:config.judgeMode,
+                    help_text:'手动评分会进入待处理列表；自动测评会写回 Hydro 成绩。'
+                  }) }}
+              </div>
+            </div>
+            <div class="row">
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'满分',
+                    name:'maxScore',
+                    value:config.maxScore
+                  }) }}
+              </div>
+              <div class="medium-8 columns scratch-inline-check">
+                {{ form.form_checkbox({
+                    label:'允许学生下载模板作品',
+                    name:'allowDownloadTemplate',
+                    value:config.allowDownloadTemplate
+                  }) }}
+              </div>
+            </div>
+          </div>
+
+          <details class="scratch-form-card scratch-algorithm-panel" id="scratch-algorithm-panel">
+            <summary>算法题测试点快速录入</summary>
+            <p class="scratch-muted">
+              如果本题是算法题，可直接在这里录入输入输出测试点。创建时会一并保存，不需要再跳转到配置页。
+            </p>
+            {{ form.form_text({
+                label:'读取输入的角色',
+                name:'algorithmTarget',
+                value:algorithmForm.target,
+                help_text:'通常填写 Stage。若变量只建在某个角色上，请填写该角色名称。'
+              }) }}
+            <div class="row">
+              <div class="medium-6 columns">
+                {{ form.form_text({
+                    label:'输入变量名',
+                    name:'algorithmInputName',
+                    value:algorithmForm.inputName
+                  }) }}
+              </div>
+              <div class="medium-6 columns">
+                {{ form.form_text({
+                    label:'输出变量名',
+                    name:'algorithmOutputName',
+                    value:algorithmForm.outputName
+                  }) }}
+              </div>
+            </div>
+            <div class="row">
+              <div class="medium-4 columns">
+                {{ form.form_select({
+                    label:'输出比较方式',
+                    name:'algorithmCompareMode',
+                    options:{trim:'忽略首尾空白', exact:'完全一致', tokens:'按空白分词比较', number:'按数字比较'},
+                    value:algorithmForm.compareMode
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'运行等待毫秒',
+                    name:'algorithmWaitMs',
+                    value:algorithmForm.waitMs
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'单点超时毫秒',
+                    name:'algorithmTimeoutMs',
+                    value:algorithmForm.timeoutMs
+                  }) }}
+              </div>
+            </div>
+            {{ form.form_textarea({
+                label:'测试点',
+                name:'algorithmCases',
+                value:algorithmForm.casesText,
+                rows:9,
+                help_text:'每行一个测试点：输入 => 期望输出 => 分值 => 名称。多行输入写成 \\n；隐藏测试点在行首加 *。'
+              }) }}
+            <pre class="scratch-config-example">示例：
+21 => 42 => 25 => 样例 1
+3\n1 2 3 => 6 => 25 => 样例 2
+* 5\n10 20 30 40 50 => 150 => 50 => 隐藏测试</pre>
+          </details>
+
+          <details class="scratch-form-card scratch-advanced-config">
+            <summary>高级自动测评 JSON 配置</summary>
+            <p class="scratch-muted">
+              任务题的静态检查、角色顺序检查、动态运行检查可以在这里粘贴完整 JSON；算法题通常使用上方快速录入即可。
+            </p>
+            {{ form.form_textarea({
+                label:'自动测评配置',
+                name:'judgeConfig',
+                value:judgeConfigText,
+                rows:14,
+                help_text:'任务题使用 staticChecks、structureChecks、dynamicChecks；复杂需求可直接编辑 JSON。'
+              }) }}
+          </details>
+
+          <details class="scratch-form-card scratch-limits">
+            <summary>作品校验限制</summary>
+            <div class="row">
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'作品文件上限 MB',
+                    name:'maxProjectSizeMB',
+                    value:config.maxProjectSizeMB
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'解压后总大小上限 MB',
+                    name:'maxUnpackedSizeMB',
+                    value:config.maxUnpackedSizeMB
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'单个素材上限 MB',
+                    name:'maxAssetSizeMB',
+                    value:config.maxAssetSizeMB
+                  }) }}
+              </div>
+            </div>
+            <div class="row">
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'素材数量上限',
+                    name:'maxAssetCount',
+                    value:config.maxAssetCount
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_text({
+                    label:'project.json 上限 MB',
+                    name:'maxProjectJsonSizeMB',
+                    value:config.maxProjectJsonSizeMB
+                  }) }}
+              </div>
+              <div class="medium-4 columns">
+                {{ form.form_textarea({
+                    label:'禁用的 Scratch 扩展',
+                    name:'disabledScratchExtensions',
+                    value:config.disabledScratchExtensions.join(', '),
+                    rows:3,
+                    help_text:'多个扩展用英文逗号分隔，例如 videoSensing, translate。'
+                  }) }}
+              </div>
+            </div>
+          </details>
+
+          <div class="scratch-submit-bar">
+            <input type="submit" class="rounded primary button" value="创建并继续编辑">
+            <span>创建后会直接进入编辑页，方便上传模板作品或继续调整测试点。</span>
           </div>
         </form>
       </div>
     </div>
   </div>
-  <div class="medium-4 columns">
+
+  <div class="scratch-create-side">
     <div class="section side">
       <div class="section__header">
-        <h1 class="section__title">{{ _('Scratch Problem') }}</h1>
+        <h1 class="section__title">快速选择建议</h1>
       </div>
       <div class="section__body typo">
-        <p>This creates a regular Hydro problem and enables Scratch upload/manual scoring for it.</p>
+        <p><b>只需要老师看作品：</b>选择“任务题 + 手动评分”。</p>
+        <p><b>检查角色和积木：</b>选择“任务题 + 静态检查”或“混合测评”。</p>
+        <p><b>检查运行结果：</b>选择“任务题 + 动态运行”或“混合测评”。</p>
+        <p><b>批量输入输出：</b>选择“算法题 + 动态运行”，并填写测试点。</p>
+      </div>
+    </div>
+
+    <div class="section side">
+      <div class="section__header">
+        <h1 class="section__title">出题说明</h1>
+      </div>
+      <div class="section__body typo">
+        <p>本页会创建 Hydro 原生题目，并同步写入 Scratch 答题、暂存、提交、批改和自动测评配置。</p>
         <ul>
-          <li>Students submit <code>.sb3</code> files.</li>
-          <li>Teachers can preview, download, and manually score submissions.</li>
-          <li>Scores flow back into Hydro records and homework/contest statistics.</li>
+          <li>学生可以在网页内完成 Scratch 作品并提交。</li>
+          <li>手动评分会进入待处理列表，老师可统一筛选。</li>
+          <li>自动测评会写回 Hydro 记录，并同步比赛、作业、训练成绩。</li>
         </ul>
-        <p>
-          <a class="rounded button" href="{{ importUrl }}">Import Scratch Problem Package</a>
-          <a class="rounded button" href="{{ guideUrl }}">题目及测试点格式文档</a>
-        </p>
       </div>
     </div>
   </div>
 </div>
+
+<style>
+.scratch-create-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.scratch-create-main,
+.scratch-create-side {
+  min-width: 0;
+}
+
+.scratch-form-card {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid #dbe7f7;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.scratch-form-card h2,
+.scratch-form-card summary {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.scratch-form-card summary {
+  cursor: pointer;
+}
+
+.scratch-mode-tips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.scratch-mode-tips div {
+  padding: 10px;
+  border: 1px solid #d5e5fb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.scratch-mode-tips b,
+.scratch-mode-tips span {
+  display: block;
+}
+
+.scratch-mode-tips span,
+.scratch-muted,
+.scratch-submit-bar span {
+  color: #666;
+}
+
+.scratch-inline-check {
+  padding-top: 30px;
+}
+
+.scratch-config-example {
+  margin: 8px 0 0;
+  padding: 10px;
+  border-radius: 6px;
+  background: #fff;
+  color: #555;
+  white-space: pre-wrap;
+}
+
+.scratch-submit-bar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .scratch-create-layout,
+  .scratch-mode-tips {
+    grid-template-columns: 1fr;
+  }
+
+  .scratch-inline-check {
+    padding-top: 0;
+  }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var kind = document.querySelector('[name="problemKind"]');
+  var judge = document.querySelector('[name="judgeMode"]');
+  var algorithmPanel = document.getElementById('scratch-algorithm-panel');
+  var judgeTouched = false;
+  if (!kind || !judge || !algorithmPanel) return;
+  judge.addEventListener('change', function () {
+    judgeTouched = true;
+  });
+  function syncAlgorithmPanel() {
+    var isAlgorithm = kind.value === 'algorithm';
+    if (isAlgorithm) {
+      algorithmPanel.open = true;
+      if (!judgeTouched && judge.value === 'manual') judge.value = 'dynamic';
+    }
+  }
+  kind.addEventListener('change', syncAlgorithmPanel);
+  syncAlgorithmPanel();
+});
+</script>
 {% endblock %}

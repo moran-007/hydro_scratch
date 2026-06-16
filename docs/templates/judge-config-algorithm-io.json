@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "totalScore": 100,
+  "algorithm": {
+    "target": "Stage",
+    "inputVariable": "input",
+    "outputVariable": "output",
+    "compareMode": "trim",
+    "waitMs": 1000,
+    "timeoutMs": 6000,
+    "cases": [
+      {
+        "name": "样例 1：单个数字",
+        "input": "21",
+        "expectedOutput": "42",
+        "score": 25,
+        "hint": "请从 input 变量读取输入，并把答案写入 output 变量。"
+      },
+      {
+        "name": "样例 2：多行输入",
+        "input": "3\n1 2 3",
+        "expectedOutput": "6",
+        "score": 25
+      },
+      {
+        "name": "隐藏测试 1",
+        "input": "5\n10 20 30 40 50",
+        "expectedOutput": "150",
+        "score": 25,
+        "hidden": true
+      },
+      {
+        "name": "隐藏测试 2",
+        "input": "0",
+        "expectedOutput": "0",
+        "score": 25,
+        "hidden": true
+      }
+    ]
+  }
+}

@@ -1,6 +1,12 @@
 import { open, type Entry, type ZipFile } from 'yauzl';
+import { runAlgorithmCases } from './algorithm-judge';
 import { runDynamicChecks } from './dynamic-judge';
 import type {
+  ScratchAlgorithmCase,
+  ScratchAlgorithmCompareMode,
+  ScratchAlgorithmConfig,
+  ScratchAlgorithmInputSplit,
+  ScratchAlgorithmValue,
   ScratchDynamicCheck,
   ScratchDynamicComparison,
   ScratchDynamicOptions,
@@ -97,6 +103,19 @@ const DYNAMIC_STEP_ACTIONS = new Set([
   'key_press',
 ]);
 
+const ALGORITHM_COMPARE_MODES = new Set([
+  'exact',
+  'trim',
+  'tokens',
+  'number',
+]);
+
+const ALGORITHM_INPUT_SPLITS = new Set([
+  'none',
+  'lines',
+  'tokens',
+]);
+
 export function defaultJudgeConfig(maxScore: number): ScratchJudgeConfig {
   return {
     schemaVersion: 2,
@@ -132,6 +151,7 @@ export function normalizeJudgeConfig(input: unknown, maxScore: number): ScratchJ
     structureChecks: parseStructureChecks(config.structureChecks),
     dynamicChecks: parseDynamicChecks(config.dynamicChecks),
     dynamicOptions: parseDynamicOptions(config.dynamicOptions),
+    algorithm: parseAlgorithmConfig(config.algorithm),
   };
 }
 
@@ -144,6 +164,7 @@ export function prepareStaticJudgeConfig(config: ScratchJudgeConfig, maxScore: n
     ...normalized,
     dynamicChecks: [],
     dynamicOptions: undefined,
+    algorithm: undefined,
   };
 }
 
@@ -164,6 +185,7 @@ export function prepareJudgeConfigForMode(
       structureChecks: [],
       dynamicChecks: [],
       dynamicOptions: undefined,
+      algorithm: undefined,
     };
   }
 
@@ -172,6 +194,7 @@ export function prepareJudgeConfigForMode(
       ...normalized,
       dynamicChecks: [],
       dynamicOptions: undefined,
+      algorithm: undefined,
     };
   }
 
@@ -186,10 +209,18 @@ export function prepareJudgeConfigForMode(
   return normalized;
 }
 
-export function judgeConfigHasChecks(config: ScratchJudgeConfig): boolean {
+export function judgeConfigHasTaskChecks(config: ScratchJudgeConfig): boolean {
   return (config.staticChecks?.length || 0) > 0
     || (config.structureChecks?.length || 0) > 0
     || (config.dynamicChecks?.length || 0) > 0;
+}
+
+export function judgeConfigHasAlgorithmCases(config: ScratchJudgeConfig): boolean {
+  return (config.algorithm?.cases?.length || 0) > 0;
+}
+
+export function judgeConfigHasChecks(config: ScratchJudgeConfig): boolean {
+  return judgeConfigHasTaskChecks(config) || judgeConfigHasAlgorithmCases(config);
 }
 
 export async function judgeScratchStaticFile(filePath: string, config: ScratchJudgeConfig): Promise<ScratchJudgeResult> {
@@ -206,6 +237,14 @@ export async function judgeScratchFile(filePath: string, config: ScratchJudgeCon
     ...(await runDynamicChecks(filePath, config.dynamicChecks || [], config.dynamicOptions)),
   ];
   return createJudgeResult(projectMeta, config, details, resultMode(config));
+}
+
+export async function judgeScratchAlgorithmFile(filePath: string, config: ScratchJudgeConfig): Promise<ScratchJudgeResult> {
+  const project = await readProjectFromSb3(filePath);
+  const scripts = buildScriptGraph(project);
+  const projectMeta = collectProjectMeta(project, scripts);
+  const details = await runAlgorithmCases(filePath, config.algorithm);
+  return createJudgeResult(projectMeta, config, details, 'algorithm');
 }
 
 export async function readProjectFromSb3(filePath: string): Promise<ScratchProject> {
@@ -470,6 +509,73 @@ function parseDynamicOptions(input: unknown): ScratchDynamicOptions | undefined 
     timeoutMs: optionalNonNegativeNumber(input.timeoutMs),
     positionTolerance: optionalNonNegativeNumber(input.positionTolerance),
   };
+}
+
+function parseAlgorithmConfig(input: unknown): ScratchAlgorithmConfig | undefined {
+  if (input === undefined || input === null) return undefined;
+  if (!isPlainObject(input)) throw new Error('judgeConfig.algorithm must be an object.');
+  return {
+    target: optionalString(input.target),
+    inputVariable: optionalString(input.inputVariable),
+    inputList: optionalString(input.inputList),
+    outputVariable: optionalString(input.outputVariable),
+    outputList: optionalString(input.outputList),
+    inputSplit: parseAlgorithmInputSplit(input.inputSplit, 'judgeConfig.algorithm.inputSplit'),
+    outputJoin: typeof input.outputJoin === 'string' ? input.outputJoin : undefined,
+    compareMode: parseAlgorithmCompareMode(input.compareMode, 'judgeConfig.algorithm.compareMode'),
+    numericTolerance: optionalNonNegativeNumber(input.numericTolerance),
+    waitMs: optionalNonNegativeNumber(input.waitMs),
+    timeoutMs: optionalNonNegativeNumber(input.timeoutMs),
+    cases: parseAlgorithmCases(input.cases),
+  };
+}
+
+function parseAlgorithmCases(input: unknown): ScratchAlgorithmCase[] {
+  if (input === undefined || input === null) return [];
+  if (!Array.isArray(input)) throw new Error('judgeConfig.algorithm.cases must be an array.');
+  return input.map((item, index) => parseAlgorithmCase(item, index));
+}
+
+function parseAlgorithmCase(input: unknown, index: number): ScratchAlgorithmCase {
+  if (!isPlainObject(input)) throw new Error(`algorithm.cases[${index}] must be an object.`);
+  const item = input as Record<string, unknown>;
+  if (!Object.prototype.hasOwnProperty.call(item, 'expectedOutput')) {
+    throw new Error(`algorithm.cases[${index}].expectedOutput is required.`);
+  }
+  return {
+    name: stringValue(item.name, `Algorithm case #${index + 1}`),
+    input: parseAlgorithmValue(item.input ?? '', `algorithm.cases[${index}].input`),
+    expectedOutput: parseAlgorithmValue(item.expectedOutput, `algorithm.cases[${index}].expectedOutput`),
+    score: optionalNonNegativeNumber(item.score),
+    hint: typeof item.hint === 'string' ? item.hint : undefined,
+    hidden: item.hidden === undefined ? undefined : Boolean(item.hidden),
+    compareMode: parseAlgorithmCompareMode(item.compareMode, `algorithm.cases[${index}].compareMode`),
+  };
+}
+
+function parseAlgorithmValue(input: unknown, name: string): ScratchAlgorithmValue {
+  if (Array.isArray(input)) {
+    return input.map((item, index) => {
+      if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') return item;
+      throw new Error(`${name}[${index}] must be a string, number, or boolean.`);
+    });
+  }
+  if (typeof input === 'string' || typeof input === 'number' || typeof input === 'boolean') return input;
+  throw new Error(`${name} must be a string, number, boolean, or array.`);
+}
+
+function parseAlgorithmCompareMode(input: unknown, name: string): ScratchAlgorithmCompareMode | undefined {
+  if (input === undefined || input === null || input === '') return undefined;
+  const value = String(input);
+  if (ALGORITHM_COMPARE_MODES.has(value)) return value as ScratchAlgorithmCompareMode;
+  throw new Error(`${name} is not supported: ${value}`);
+}
+
+function parseAlgorithmInputSplit(input: unknown, name: string): ScratchAlgorithmInputSplit | undefined {
+  if (input === undefined || input === null || input === '') return undefined;
+  const value = String(input);
+  if (ALGORITHM_INPUT_SPLITS.has(value)) return value as ScratchAlgorithmInputSplit;
+  throw new Error(`${name} is not supported: ${value}`);
 }
 
 function evaluateStaticCheck(check: ScratchStaticCheck, meta: ScratchProjectMeta): ScratchJudgeDetail {
