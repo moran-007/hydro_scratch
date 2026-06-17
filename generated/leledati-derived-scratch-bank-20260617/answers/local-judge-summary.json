@@ -1,0 +1,969 @@
+[
+  {
+    "pid": "llscratcha01",
+    "title": "考试日期格式转换器",
+    "kind": "algorithm",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "样例 1",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"20260615\"",
+          "actual: \"转换完成！考试日期是：2026年06月15日\"",
+          "expected: \"转换完成！考试日期是：2026年06月15日\""
+        ]
+      },
+      {
+        "name": "样例 2",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"20261111\"",
+          "actual: \"转换完成！考试日期是：2026年11月11日\"",
+          "expected: \"转换完成！考试日期是：2026年11月11日\""
+        ]
+      },
+      {
+        "name": "月初日期",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"20270102\"",
+          "actual: \"转换完成！考试日期是：2027年01月02日\"",
+          "expected: \"转换完成！考试日期是：2027年01月02日\""
+        ]
+      },
+      {
+        "name": "年末日期",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      },
+      {
+        "name": "隐藏日期",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcha02",
+    "title": "两位数 3 的倍数判定",
+    "kind": "algorithm",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "45 是 3 的倍数",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"45\"",
+          "actual: \"是3的倍数\"",
+          "expected: \"是3的倍数\""
+        ]
+      },
+      {
+        "name": "47 不是 3 的倍数",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"47\"",
+          "actual: \"不是3的倍数\"",
+          "expected: \"不是3的倍数\""
+        ]
+      },
+      {
+        "name": "99 是 3 的倍数",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"99\"",
+          "actual: \"是3的倍数\"",
+          "expected: \"是3的倍数\""
+        ]
+      },
+      {
+        "name": "隐藏边界 30",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      },
+      {
+        "name": "隐藏边界 58",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcha03",
+    "title": "藏头诗提取器",
+    "kind": "algorithm",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "固定古诗提取",
+        "passed": true,
+        "score": 100,
+        "maxScore": 100,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"\"",
+          "actual: \"千万孤独\"",
+          "expected: \"千万孤独\""
+        ]
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcha04",
+    "title": "大苹果统计器",
+    "kind": "algorithm",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "样例 1",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: [150,320,450,260,310]",
+          "actual: \"3#1080\"",
+          "expected: \"3#1080\""
+        ]
+      },
+      {
+        "name": "边界 300 不计入",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: [300,301,299,500]",
+          "actual: \"2#801\"",
+          "expected: \"2#801\""
+        ]
+      },
+      {
+        "name": "全部都是大苹果",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: [350,360,370]",
+          "actual: \"3#1080\"",
+          "expected: \"3#1080\""
+        ]
+      },
+      {
+        "name": "没有大苹果",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      },
+      {
+        "name": "隐藏混合数据",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcha05",
+    "title": "成绩等级播报器",
+    "kind": "algorithm",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "优秀",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"95\"",
+          "actual: \"优秀\"",
+          "expected: \"优秀\""
+        ]
+      },
+      {
+        "name": "良好边界",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"89\"",
+          "actual: \"良好\"",
+          "expected: \"良好\""
+        ]
+      },
+      {
+        "name": "合格边界",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: \"60\"",
+          "actual: \"合格\"",
+          "expected: \"合格\""
+        ]
+      },
+      {
+        "name": "不合格",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      },
+      {
+        "name": "优秀边界",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcha06",
+    "title": "列表筛选与重排",
+    "kind": "algorithm",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "样例 1",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: [13,15,7,12,9,17,21,5,4,19]",
+          "actual: \"9#12#21#19#4#5#17#7#15#13\"",
+          "expected: \"9#12#21#19#4#5#17#7#15#13\""
+        ]
+      },
+      {
+        "name": "样例 2",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: [5,10,48,81,50,20,85,90,60,30]",
+          "actual: \"48#81#30#60#90#85#20#50#10#5\"",
+          "expected: \"48#81#30#60#90#85#20#50#10#5\""
+        ]
+      },
+      {
+        "name": "全部进入前半部分",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison.",
+        "evidence": [
+          "input: [3,6,9,12]",
+          "actual: \"3#6#9#12\"",
+          "expected: \"3#6#9#12\""
+        ]
+      },
+      {
+        "name": "全部进入后半部分",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      },
+      {
+        "name": "隐藏混合数据",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Algorithm case passed using exact comparison."
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcht01",
+    "title": "星际航线定位",
+    "kind": "task",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "存在 Player 飞船角色",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found sprite: Player",
+        "evidence": [
+          "Player",
+          "Star"
+        ]
+      },
+      {
+        "name": "存在 Star 星星角色",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found sprite: Star",
+        "evidence": [
+          "Player",
+          "Star"
+        ]
+      },
+      {
+        "name": "存在 score 变量",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found variable: score",
+        "evidence": [
+          "score"
+        ]
+      },
+      {
+        "name": "使用绿旗开始程序",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: event_whenflagclicked",
+        "evidence": [
+          "motion_gotoxy: 2",
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1"
+        ]
+      },
+      {
+        "name": "使用坐标定位积木",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found block: motion_gotoxy",
+        "evidence": [
+          "motion_gotoxy: 2",
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1"
+        ]
+      },
+      {
+        "name": "使用变量赋值积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: data_setvariableto",
+        "evidence": [
+          "motion_gotoxy: 2",
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1"
+        ]
+      },
+      {
+        "name": "至少使用两次坐标定位",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Block motion_gotoxy count is 2",
+        "evidence": [
+          "motion_gotoxy: 2"
+        ]
+      },
+      {
+        "name": "Player 有绿旗脚本",
+        "passed": true,
+        "score": 0,
+        "maxScore": 0,
+        "message": "Found event_whenflagclicked script in Player.",
+        "evidence": [
+          "Player/event_whenflagclicked: event_whenflagclicked -> motion_gotoxy -> data_setvariableto -> motion_gotoxy"
+        ]
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcht02",
+    "title": "派对礼物变装",
+    "kind": "task",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "存在 Gift 角色",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found sprite: Gift",
+        "evidence": [
+          "Gift"
+        ]
+      },
+      {
+        "name": "存在 changeCount 变量",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found variable: changeCount",
+        "evidence": [
+          "changeCount"
+        ]
+      },
+      {
+        "name": "使用绿旗积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: event_whenflagclicked",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_repeat: 1",
+          "looks_switchcostumeto: 1",
+          "control_wait: 1",
+          "data_changevariableby: 1"
+        ]
+      },
+      {
+        "name": "使用切换造型积木",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found block: looks_switchcostumeto",
+        "evidence": [
+          "looks_switchcostumeto"
+        ]
+      },
+      {
+        "name": "使用等待积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: control_wait",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_repeat: 1",
+          "looks_switchcostumeto: 1",
+          "control_wait: 1",
+          "data_changevariableby: 1"
+        ]
+      },
+      {
+        "name": "使用重复执行积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: control_repeat",
+        "evidence": [
+          "control_repeat"
+        ]
+      },
+      {
+        "name": "使用变量增加积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: data_changevariableby",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_repeat: 1",
+          "looks_switchcostumeto: 1",
+          "control_wait: 1",
+          "data_changevariableby: 1"
+        ]
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcht03",
+    "title": "森林小鸟接力飞行",
+    "kind": "task",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "存在 Bird 角色",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found sprite: Bird",
+        "evidence": [
+          "Bird",
+          "Tree"
+        ]
+      },
+      {
+        "name": "存在 Tree 角色",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found sprite: Tree",
+        "evidence": [
+          "Bird",
+          "Tree"
+        ]
+      },
+      {
+        "name": "存在 steps 变量",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found variable: steps",
+        "evidence": [
+          "steps"
+        ]
+      },
+      {
+        "name": "使用绿旗积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: event_whenflagclicked",
+        "evidence": [
+          "motion_glidesecstoxy: 3",
+          "data_changevariableby: 3",
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "looks_sayforsecs: 1"
+        ]
+      },
+      {
+        "name": "使用滑行积木",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found block: motion_glidesecstoxy",
+        "evidence": [
+          "motion_glidesecstoxy: 3",
+          "data_changevariableby: 3",
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "looks_sayforsecs: 1"
+        ]
+      },
+      {
+        "name": "至少三段滑行",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Block motion_glidesecstoxy count is 3",
+        "evidence": [
+          "motion_glidesecstoxy: 3"
+        ]
+      },
+      {
+        "name": "使用说话积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: looks_sayforsecs",
+        "evidence": [
+          "looks_sayforsecs"
+        ]
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcht04",
+    "title": "键盘赛车训练",
+    "kind": "task",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "存在 Car 角色",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found sprite: Car",
+        "evidence": [
+          "Car"
+        ]
+      },
+      {
+        "name": "存在 distance 变量",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found variable: distance",
+        "evidence": [
+          "distance"
+        ]
+      },
+      {
+        "name": "使用绿旗积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: event_whenflagclicked",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "event_whenkeypressed: 1",
+          "motion_changexby: 1",
+          "data_changevariableby: 1",
+          "operator_gt: 1",
+          "looks_sayforsecs: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用按键事件积木",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found block: event_whenkeypressed",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "event_whenkeypressed: 1",
+          "motion_changexby: 1",
+          "data_changevariableby: 1",
+          "operator_gt: 1",
+          "looks_sayforsecs: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用横向移动积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: motion_changexby",
+        "evidence": [
+          "motion_changexby"
+        ]
+      },
+      {
+        "name": "使用如果判断积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: control_if",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "event_whenkeypressed: 1",
+          "motion_changexby: 1",
+          "data_changevariableby: 1",
+          "operator_gt: 1",
+          "looks_sayforsecs: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用比较运算积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: operator_gt",
+        "evidence": [
+          "operator_gt"
+        ]
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcht05",
+    "title": "画笔四宫格图案",
+    "kind": "task",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "存在 Painter 角色",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found sprite: Painter",
+        "evidence": [
+          "Painter"
+        ]
+      },
+      {
+        "name": "存在 side 变量",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found variable: side",
+        "evidence": [
+          "side"
+        ]
+      },
+      {
+        "name": "使用绿旗积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: event_whenflagclicked",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "pen_clear: 1",
+          "data_setvariableto: 1",
+          "motion_gotoxy: 1",
+          "pen_penDown: 1",
+          "control_repeat: 1",
+          "motion_movesteps: 1",
+          "motion_turnright: 1"
+        ]
+      },
+      {
+        "name": "使用清空画笔积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: pen_clear",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "pen_clear: 1",
+          "data_setvariableto: 1",
+          "motion_gotoxy: 1",
+          "pen_penDown: 1",
+          "control_repeat: 1",
+          "motion_movesteps: 1",
+          "motion_turnright: 1"
+        ]
+      },
+      {
+        "name": "使用落笔积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: pen_penDown",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "pen_clear: 1",
+          "data_setvariableto: 1",
+          "motion_gotoxy: 1",
+          "pen_penDown: 1",
+          "control_repeat: 1",
+          "motion_movesteps: 1",
+          "motion_turnright: 1"
+        ]
+      },
+      {
+        "name": "使用移动步数积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: motion_movesteps",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "pen_clear: 1",
+          "data_setvariableto: 1",
+          "motion_gotoxy: 1",
+          "pen_penDown: 1",
+          "control_repeat: 1",
+          "motion_movesteps: 1",
+          "motion_turnright: 1"
+        ]
+      },
+      {
+        "name": "使用右转积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: motion_turnright",
+        "evidence": [
+          "motion_turnright"
+        ]
+      },
+      {
+        "name": "使用重复执行积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: control_repeat",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "pen_clear: 1",
+          "data_setvariableto: 1",
+          "motion_gotoxy: 1",
+          "pen_penDown: 1",
+          "control_repeat: 1",
+          "motion_movesteps: 1",
+          "motion_turnright: 1"
+        ]
+      }
+    ],
+    "error": ""
+  },
+  {
+    "pid": "llscratcht06",
+    "title": "克隆星星雨",
+    "kind": "task",
+    "validationOk": true,
+    "score": 100,
+    "maxScore": 100,
+    "passed": true,
+    "details": [
+      {
+        "name": "存在 Star 角色",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found sprite: Star",
+        "evidence": [
+          "Star"
+        ]
+      },
+      {
+        "name": "存在 caught 变量",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found variable: caught",
+        "evidence": [
+          "caught"
+        ]
+      },
+      {
+        "name": "使用绿旗积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: event_whenflagclicked",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_create_clone_of: 1",
+          "control_start_as_clone: 1",
+          "motion_changeyby: 1",
+          "operator_lt: 1",
+          "control_delete_this_clone: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用创建克隆体积木",
+        "passed": true,
+        "score": 20,
+        "maxScore": 20,
+        "message": "Found block: control_create_clone_of",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_create_clone_of: 1",
+          "control_start_as_clone: 1",
+          "motion_changeyby: 1",
+          "operator_lt: 1",
+          "control_delete_this_clone: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用当作为克隆体启动积木",
+        "passed": true,
+        "score": 15,
+        "maxScore": 15,
+        "message": "Found block: control_start_as_clone",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_create_clone_of: 1",
+          "control_start_as_clone: 1",
+          "motion_changeyby: 1",
+          "operator_lt: 1",
+          "control_delete_this_clone: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用删除克隆体积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: control_delete_this_clone",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_create_clone_of: 1",
+          "control_start_as_clone: 1",
+          "motion_changeyby: 1",
+          "operator_lt: 1",
+          "control_delete_this_clone: 1",
+          "control_if: 1"
+        ]
+      },
+      {
+        "name": "使用条件判断积木",
+        "passed": true,
+        "score": 10,
+        "maxScore": 10,
+        "message": "Found block: control_if",
+        "evidence": [
+          "event_whenflagclicked: 1",
+          "data_setvariableto: 1",
+          "control_create_clone_of: 1",
+          "control_start_as_clone: 1",
+          "motion_changeyby: 1",
+          "operator_lt: 1",
+          "control_delete_this_clone: 1",
+          "control_if: 1"
+        ]
+      }
+    ],
+    "error": ""
+  }
+]
