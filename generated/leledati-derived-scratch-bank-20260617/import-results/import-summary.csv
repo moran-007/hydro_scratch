@@ -1,0 +1,13 @@
+pid,title,kind,importStatus,location,configStatus,editorStatus,configHasTitle,editorHasScratchPage,configLength,editorLength
+llscratcht01,星际航线定位,任务题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcht01/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,35153,63572
+llscratcht02,派对礼物变装,任务题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcht02/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34536,63572
+llscratcht03,森林小鸟接力飞行,任务题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcht03/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34501,63572
+llscratcht04,键盘赛车训练,任务题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcht04/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34433,63572
+llscratcht05,画笔四宫格图案,任务题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcht05/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34689,63572
+llscratcht06,克隆星星雨,任务题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcht06/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34334,63572
+llscratcha01,考试日期格式转换器,算法题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcha01/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,35470,63572
+llscratcha02,两位数 3 的倍数判定,算法题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcha02/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34966,63572
+llscratcha03,藏头诗提取器,算法题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcha03/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,33800,63572
+llscratcha04,大苹果统计器,算法题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcha04/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,35161,63572
+llscratcha05,成绩等级播报器,算法题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcha05/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,34273,63572
+llscratcha06,列表筛选与重排,算法题,HTTP/1.1 302 Found,/d/scratch/scratch/problem/llscratcha06/config,HTTP/1.1 200 OK,HTTP/1.1 200 OK,True,True,35795,63572

@@ -1,0 +1,24 @@
+format: hydro-scratch-problem
+version: 1
+pid: llscratcha04
+title: "大苹果统计器"
+hidden: false
+tags:
+  - "Scratch"
+  - "算法题"
+  - "列表输入"
+scratch:
+  enabled: true
+  problemKind: algorithm
+  submitMode: both
+  judgeMode: dynamic
+  maxScore: 100
+  allowDownloadTemplate: true
+  disabledScratchExtensions:
+    - videoSensing
+  limits:
+    maxProjectSizeMB: 20
+    maxUnpackedSizeMB: 80
+    maxAssetSizeMB: 10
+    maxAssetCount: 300
+    maxProjectJsonSizeMB: 10

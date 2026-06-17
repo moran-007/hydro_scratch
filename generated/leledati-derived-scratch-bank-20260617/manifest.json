@@ -1,0 +1,74 @@
+[
+  {
+    "pid": "llscratcht01",
+    "title": "星际航线定位",
+    "kind": "任务题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcht01.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcht02",
+    "title": "派对礼物变装",
+    "kind": "任务题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcht02.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcht03",
+    "title": "森林小鸟接力飞行",
+    "kind": "任务题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcht03.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcht04",
+    "title": "键盘赛车训练",
+    "kind": "任务题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcht04.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcht05",
+    "title": "画笔四宫格图案",
+    "kind": "任务题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcht05.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcht06",
+    "title": "克隆星星雨",
+    "kind": "任务题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcht06.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcha01",
+    "title": "考试日期格式转换器",
+    "kind": "算法题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcha01.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcha02",
+    "title": "两位数 3 的倍数判定",
+    "kind": "算法题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcha02.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcha03",
+    "title": "藏头诗提取器",
+    "kind": "算法题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcha03.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcha04",
+    "title": "大苹果统计器",
+    "kind": "算法题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcha04.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcha05",
+    "title": "成绩等级播报器",
+    "kind": "算法题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcha05.scratch-problem.zip"
+  },
+  {
+    "pid": "llscratcha06",
+    "title": "列表筛选与重排",
+    "kind": "算法题",
+    "zip": "generated\\leledati-derived-scratch-bank-20260617\\llscratcha06.scratch-problem.zip"
+  }
+]

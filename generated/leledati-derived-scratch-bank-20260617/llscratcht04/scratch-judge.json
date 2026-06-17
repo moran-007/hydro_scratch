@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "title": "键盘赛车训练",
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Car 角色",
+      "score": 15,
+      "type": "sprite_exists",
+      "sprite": "Car"
+    },
+    {
+      "name": "存在 distance 变量",
+      "score": 15,
+      "type": "variable_exists",
+      "variable": "distance"
+    },
+    {
+      "name": "使用绿旗积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "event_whenflagclicked"
+    },
+    {
+      "name": "使用按键事件积木",
+      "score": 20,
+      "type": "block_exists",
+      "opcode": "event_whenkeypressed"
+    },
+    {
+      "name": "使用横向移动积木",
+      "score": 15,
+      "type": "block_exists_any",
+      "opcodes": [
+        "motion_changexby",
+        "motion_gotoxy"
+      ]
+    },
+    {
+      "name": "使用如果判断积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "control_if"
+    },
+    {
+      "name": "使用比较运算积木",
+      "score": 10,
+      "type": "block_exists_any",
+      "opcodes": [
+        "operator_gt",
+        "operator_equals"
+      ]
+    }
+  ],
+  "structureChecks": [],
+  "dynamicChecks": []
+}

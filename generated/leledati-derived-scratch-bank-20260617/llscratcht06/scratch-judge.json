@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 2,
+  "title": "克隆星星雨",
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Star 角色",
+      "score": 20,
+      "type": "sprite_exists",
+      "sprite": "Star"
+    },
+    {
+      "name": "存在 caught 变量",
+      "score": 15,
+      "type": "variable_exists",
+      "variable": "caught"
+    },
+    {
+      "name": "使用绿旗积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "event_whenflagclicked"
+    },
+    {
+      "name": "使用创建克隆体积木",
+      "score": 20,
+      "type": "block_exists",
+      "opcode": "control_create_clone_of"
+    },
+    {
+      "name": "使用当作为克隆体启动积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "control_start_as_clone"
+    },
+    {
+      "name": "使用删除克隆体积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "control_delete_this_clone"
+    },
+    {
+      "name": "使用条件判断积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "control_if"
+    }
+  ],
+  "structureChecks": [],
+  "dynamicChecks": []
+}

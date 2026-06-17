@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 2,
+  "title": "森林小鸟接力飞行",
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Bird 角色",
+      "score": 15,
+      "type": "sprite_exists",
+      "sprite": "Bird"
+    },
+    {
+      "name": "存在 Tree 角色",
+      "score": 10,
+      "type": "sprite_exists",
+      "sprite": "Tree"
+    },
+    {
+      "name": "存在 steps 变量",
+      "score": 15,
+      "type": "variable_exists",
+      "variable": "steps"
+    },
+    {
+      "name": "使用绿旗积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "event_whenflagclicked"
+    },
+    {
+      "name": "使用滑行积木",
+      "score": 20,
+      "type": "block_exists",
+      "opcode": "motion_glidesecstoxy"
+    },
+    {
+      "name": "至少三段滑行",
+      "score": 15,
+      "type": "min_block_count",
+      "opcode": "motion_glidesecstoxy",
+      "count": 3
+    },
+    {
+      "name": "使用说话积木",
+      "score": 15,
+      "type": "block_exists_any",
+      "opcodes": [
+        "looks_say",
+        "looks_sayforsecs"
+      ]
+    }
+  ],
+  "structureChecks": [],
+  "dynamicChecks": []
+}

@@ -1,0 +1,24 @@
+format: hydro-scratch-problem
+version: 1
+pid: llscratcha06
+title: "列表筛选与重排"
+hidden: false
+tags:
+  - "Scratch"
+  - "算法题"
+  - "列表输出"
+scratch:
+  enabled: true
+  problemKind: algorithm
+  submitMode: both
+  judgeMode: dynamic
+  maxScore: 100
+  allowDownloadTemplate: true
+  disabledScratchExtensions:
+    - videoSensing
+  limits:
+    maxProjectSizeMB: 20
+    maxUnpackedSizeMB: 80
+    maxAssetSizeMB: 10
+    maxAssetCount: 300
+    maxProjectJsonSizeMB: 10

@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "title": "大苹果统计器",
+  "totalScore": 100,
+  "staticChecks": [],
+  "structureChecks": [],
+  "dynamicChecks": [],
+  "algorithm": {
+    "waitMs": 1600,
+    "timeoutMs": 8000,
+    "compareMode": "exact",
+    "inputMode": "list",
+    "inputList": "苹果重量",
+    "outputMode": "variable",
+    "outputVariable": "result",
+    "cases": [
+      {
+        "name": "样例 1",
+        "input": [
+          150,
+          320,
+          450,
+          260,
+          310
+        ],
+        "expectedOutput": "3#1080",
+        "score": 20
+      },
+      {
+        "name": "边界 300 不计入",
+        "input": [
+          300,
+          301,
+          299,
+          500
+        ],
+        "expectedOutput": "2#801",
+        "score": 20
+      },
+      {
+        "name": "全部都是大苹果",
+        "input": [
+          350,
+          360,
+          370
+        ],
+        "expectedOutput": "3#1080",
+        "score": 20
+      },
+      {
+        "name": "没有大苹果",
+        "input": [
+          100,
+          200,
+          300
+        ],
+        "expectedOutput": "0#0",
+        "score": 20,
+        "hidden": true
+      },
+      {
+        "name": "隐藏混合数据",
+        "input": [
+          420,
+          180,
+          305,
+          600,
+          299,
+          301
+        ],
+        "expectedOutput": "4#1626",
+        "score": 20,
+        "hidden": true
+      }
+    ]
+  }
+}

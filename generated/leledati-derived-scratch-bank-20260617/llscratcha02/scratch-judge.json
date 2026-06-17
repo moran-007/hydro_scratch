@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "title": "两位数 3 的倍数判定",
+  "totalScore": 100,
+  "staticChecks": [],
+  "structureChecks": [],
+  "dynamicChecks": [],
+  "algorithm": {
+    "waitMs": 1600,
+    "timeoutMs": 8000,
+    "compareMode": "exact",
+    "inputMode": "ask",
+    "outputMode": "say",
+    "cases": [
+      {
+        "name": "45 是 3 的倍数",
+        "input": "45",
+        "expectedOutput": "是3的倍数",
+        "score": 20
+      },
+      {
+        "name": "47 不是 3 的倍数",
+        "input": "47",
+        "expectedOutput": "不是3的倍数",
+        "score": 20
+      },
+      {
+        "name": "99 是 3 的倍数",
+        "input": "99",
+        "expectedOutput": "是3的倍数",
+        "score": 20
+      },
+      {
+        "name": "隐藏边界 30",
+        "input": "30",
+        "expectedOutput": "是3的倍数",
+        "score": 20,
+        "hidden": true
+      },
+      {
+        "name": "隐藏边界 58",
+        "input": "58",
+        "expectedOutput": "不是3的倍数",
+        "score": 20,
+        "hidden": true
+      }
+    ]
+  }
+}

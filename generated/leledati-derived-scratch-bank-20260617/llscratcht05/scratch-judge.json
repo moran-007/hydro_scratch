@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 2,
+  "title": "画笔四宫格图案",
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Painter 角色",
+      "score": 15,
+      "type": "sprite_exists",
+      "sprite": "Painter"
+    },
+    {
+      "name": "存在 side 变量",
+      "score": 10,
+      "type": "variable_exists",
+      "variable": "side"
+    },
+    {
+      "name": "使用绿旗积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "event_whenflagclicked"
+    },
+    {
+      "name": "使用清空画笔积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "pen_clear"
+    },
+    {
+      "name": "使用落笔积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "pen_penDown"
+    },
+    {
+      "name": "使用移动步数积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "motion_movesteps"
+    },
+    {
+      "name": "使用右转积木",
+      "score": 10,
+      "type": "block_exists_any",
+      "opcodes": [
+        "motion_turnright",
+        "motion_turnleft"
+      ]
+    },
+    {
+      "name": "使用重复执行积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "control_repeat"
+    }
+  ],
+  "structureChecks": [],
+  "dynamicChecks": []
+}

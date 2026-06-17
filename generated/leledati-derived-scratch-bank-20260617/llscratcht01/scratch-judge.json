@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 2,
+  "title": "星际航线定位",
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Player 飞船角色",
+      "score": 15,
+      "type": "sprite_exists",
+      "sprite": "Player"
+    },
+    {
+      "name": "存在 Star 星星角色",
+      "score": 10,
+      "type": "sprite_exists",
+      "sprite": "Star"
+    },
+    {
+      "name": "存在 score 变量",
+      "score": 15,
+      "type": "variable_exists",
+      "variable": "score"
+    },
+    {
+      "name": "使用绿旗开始程序",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "event_whenflagclicked"
+    },
+    {
+      "name": "使用坐标定位积木",
+      "score": 20,
+      "type": "block_exists",
+      "opcode": "motion_gotoxy"
+    },
+    {
+      "name": "使用变量赋值积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "data_setvariableto"
+    },
+    {
+      "name": "至少使用两次坐标定位",
+      "score": 10,
+      "type": "min_block_count",
+      "opcode": "motion_gotoxy",
+      "count": 2
+    }
+  ],
+  "structureChecks": [
+    {
+      "name": "Player 有绿旗脚本",
+      "score": 0,
+      "type": "target_script_exists",
+      "target": "Player",
+      "hat": "event_whenflagclicked"
+    }
+  ],
+  "dynamicChecks": []
+}

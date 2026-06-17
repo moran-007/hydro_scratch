@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "title": "成绩等级播报器",
+  "totalScore": 100,
+  "staticChecks": [],
+  "structureChecks": [],
+  "dynamicChecks": [],
+  "algorithm": {
+    "waitMs": 1600,
+    "timeoutMs": 8000,
+    "compareMode": "exact",
+    "inputMode": "ask",
+    "outputMode": "say",
+    "cases": [
+      {
+        "name": "优秀",
+        "input": "95",
+        "expectedOutput": "优秀",
+        "score": 20
+      },
+      {
+        "name": "良好边界",
+        "input": "89",
+        "expectedOutput": "良好",
+        "score": 20
+      },
+      {
+        "name": "合格边界",
+        "input": "60",
+        "expectedOutput": "合格",
+        "score": 20
+      },
+      {
+        "name": "不合格",
+        "input": "42",
+        "expectedOutput": "继续努力",
+        "score": 20,
+        "hidden": true
+      },
+      {
+        "name": "优秀边界",
+        "input": "90",
+        "expectedOutput": "优秀",
+        "score": 20,
+        "hidden": true
+      }
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 2,
+  "title": "考试日期格式转换器",
+  "totalScore": 100,
+  "staticChecks": [],
+  "structureChecks": [],
+  "dynamicChecks": [],
+  "algorithm": {
+    "waitMs": 1600,
+    "timeoutMs": 8000,
+    "compareMode": "exact",
+    "inputMode": "ask",
+    "outputMode": "say",
+    "cases": [
+      {
+        "name": "样例 1",
+        "input": "20260615",
+        "expectedOutput": "转换完成！考试日期是：2026年06月15日",
+        "score": 20
+      },
+      {
+        "name": "样例 2",
+        "input": "20261111",
+        "expectedOutput": "转换完成！考试日期是：2026年11月11日",
+        "score": 20
+      },
+      {
+        "name": "月初日期",
+        "input": "20270102",
+        "expectedOutput": "转换完成！考试日期是：2027年01月02日",
+        "score": 20
+      },
+      {
+        "name": "年末日期",
+        "input": "20281231",
+        "expectedOutput": "转换完成！考试日期是：2028年12月31日",
+        "score": 20,
+        "hidden": true
+      },
+      {
+        "name": "隐藏日期",
+        "input": "20300509",
+        "expectedOutput": "转换完成！考试日期是：2030年05月09日",
+        "score": 20,
+        "hidden": true
+      }
+    ]
+  }
+}

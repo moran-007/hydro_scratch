@@ -1,0 +1,24 @@
+format: hydro-scratch-problem
+version: 1
+pid: llscratcht02
+title: "派对礼物变装"
+hidden: false
+tags:
+  - "Scratch"
+  - "任务题"
+  - "造型"
+scratch:
+  enabled: true
+  problemKind: task
+  submitMode: both
+  judgeMode: hybrid
+  maxScore: 100
+  allowDownloadTemplate: true
+  disabledScratchExtensions:
+    - videoSensing
+  limits:
+    maxProjectSizeMB: 20
+    maxUnpackedSizeMB: 80
+    maxAssetSizeMB: 10
+    maxAssetCount: 300
+    maxProjectJsonSizeMB: 10

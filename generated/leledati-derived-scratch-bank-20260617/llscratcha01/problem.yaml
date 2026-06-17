@@ -1,0 +1,24 @@
+format: hydro-scratch-problem
+version: 1
+pid: llscratcha01
+title: "考试日期格式转换器"
+hidden: false
+tags:
+  - "Scratch"
+  - "算法题"
+  - "问答输入"
+scratch:
+  enabled: true
+  problemKind: algorithm
+  submitMode: both
+  judgeMode: dynamic
+  maxScore: 100
+  allowDownloadTemplate: true
+  disabledScratchExtensions:
+    - videoSensing
+  limits:
+    maxProjectSizeMB: 20
+    maxUnpackedSizeMB: 80
+    maxAssetSizeMB: 10
+    maxAssetCount: 300
+    maxProjectJsonSizeMB: 10

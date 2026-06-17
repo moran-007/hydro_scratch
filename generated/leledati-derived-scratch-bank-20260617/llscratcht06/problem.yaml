@@ -1,0 +1,24 @@
+format: hydro-scratch-problem
+version: 1
+pid: llscratcht06
+title: "克隆星星雨"
+hidden: false
+tags:
+  - "Scratch"
+  - "任务题"
+  - "克隆"
+scratch:
+  enabled: true
+  problemKind: task
+  submitMode: both
+  judgeMode: hybrid
+  maxScore: 100
+  allowDownloadTemplate: true
+  disabledScratchExtensions:
+    - videoSensing
+  limits:
+    maxProjectSizeMB: 20
+    maxUnpackedSizeMB: 80
+    maxAssetSizeMB: 10
+    maxAssetCount: 300
+    maxProjectJsonSizeMB: 10

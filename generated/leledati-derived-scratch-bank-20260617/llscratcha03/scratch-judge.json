@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 2,
+  "title": "藏头诗提取器",
+  "totalScore": 100,
+  "staticChecks": [],
+  "structureChecks": [],
+  "dynamicChecks": [],
+  "algorithm": {
+    "waitMs": 1600,
+    "timeoutMs": 8000,
+    "compareMode": "exact",
+    "inputMode": "variable",
+    "inputVariable": "input",
+    "outputMode": "variable",
+    "outputVariable": "藏头",
+    "cases": [
+      {
+        "name": "固定古诗提取",
+        "input": "",
+        "expectedOutput": "千万孤独",
+        "score": 100
+      }
+    ]
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 2,
+  "title": "派对礼物变装",
+  "totalScore": 100,
+  "staticChecks": [
+    {
+      "name": "存在 Gift 角色",
+      "score": 20,
+      "type": "sprite_exists",
+      "sprite": "Gift"
+    },
+    {
+      "name": "存在 changeCount 变量",
+      "score": 15,
+      "type": "variable_exists",
+      "variable": "changeCount"
+    },
+    {
+      "name": "使用绿旗积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "event_whenflagclicked"
+    },
+    {
+      "name": "使用切换造型积木",
+      "score": 20,
+      "type": "block_exists_any",
+      "opcodes": [
+        "looks_switchcostumeto",
+        "looks_nextcostume"
+      ]
+    },
+    {
+      "name": "使用等待积木",
+      "score": 10,
+      "type": "block_exists",
+      "opcode": "control_wait"
+    },
+    {
+      "name": "使用重复执行积木",
+      "score": 10,
+      "type": "block_exists_any",
+      "opcodes": [
+        "control_repeat",
+        "control_forever"
+      ]
+    },
+    {
+      "name": "使用变量增加积木",
+      "score": 15,
+      "type": "block_exists",
+      "opcode": "data_changevariableby"
+    }
+  ],
+  "structureChecks": [],
+  "dynamicChecks": []
+}

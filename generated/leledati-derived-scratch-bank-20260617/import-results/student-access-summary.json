@@ -1,0 +1,22 @@
+[
+  {
+    "pid": "llscratcht01",
+    "status": "HTTP/1.1 200 OK",
+    "hasEditor": true
+  },
+  {
+    "pid": "llscratcha01",
+    "status": "HTTP/1.1 200 OK",
+    "hasEditor": true
+  },
+  {
+    "pid": "llscratcha04",
+    "status": "HTTP/1.1 200 OK",
+    "hasEditor": true
+  },
+  {
+    "pid": "llscratcha06",
+    "status": "HTTP/1.1 200 OK",
+    "hasEditor": true
+  }
+]
